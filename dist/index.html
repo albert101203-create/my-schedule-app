@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#6256e8" />
+    <meta name="description" content="나만의 간편한 일정 관리 앱" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icon.svg" />
+    <link rel="stylesheet" href="style.css" />
+    <title>오늘의 일정</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="todayLabel">오늘</p>
+          <h1>나의 일정</h1>
+        </div>
+        <button class="icon-button" id="jumpToday" type="button" aria-label="오늘로 이동" title="오늘로 이동">◉</button>
+      </header>
+
+      <section class="summary-card" aria-label="오늘 요약">
+        <div class="summary-date" id="summaryDate"></div>
+        <div><strong id="todayCount">0</strong><span>개의 일정이 있어요</span></div>
+        <p id="nextSchedule">오늘은 여유로운 하루예요.</p>
+      </section>
+
+      <nav class="view-tabs" aria-label="보기 전환">
+        <button class="tab active" type="button" data-view="agenda">목록</button>
+        <button class="tab" type="button" data-view="calendar">달력</button>
+      </nav>
+
+      <section id="agendaView" class="view">
+        <div class="section-heading">
+          <h2 id="agendaHeading">다가오는 일정</h2>
+          <button class="text-button" id="filterButton" type="button">전체 보기</button>
+        </div>
+        <div id="scheduleList" class="schedule-list" aria-live="polite"></div>
+      </section>
+
+      <section id="calendarView" class="view hidden">
+        <div class="calendar-toolbar">
+          <button class="icon-button small" id="previousMonth" type="button" aria-label="이전 달">‹</button>
+          <h2 id="monthTitle"></h2>
+          <button class="icon-button small" id="nextMonth" type="button" aria-label="다음 달">›</button>
+        </div>
+        <div class="weekdays" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+        <div id="calendarGrid" class="calendar-grid"></div>
+        <div class="selected-day" id="selectedDaySchedules"></div>
+      </section>
+    </main>
+
+    <button class="add-button" id="openAddModal" type="button" aria-label="일정 추가"><span>＋</span> 일정 추가</button>
+
+    <dialog id="scheduleDialog" class="schedule-dialog">
+      <form id="scheduleForm" method="dialog">
+        <div class="dialog-header">
+          <h2 id="dialogTitle">새 일정</h2>
+          <button class="icon-button small" id="closeDialog" type="button" aria-label="닫기">×</button>
+        </div>
+        <label>일정 이름<input id="titleInput" name="title" type="text" maxlength="60" placeholder="예: 수학 학원" required autocomplete="off" /></label>
+        <div class="form-row">
+          <label>날짜<input id="dateInput" name="date" type="date" required /></label>
+          <label>시간<input id="timeInput" name="time" type="time" /></label>
+        </div>
+        <label>분류
+          <select id="categoryInput" name="category">
+            <option value="school">학교</option><option value="study">공부</option><option value="personal">개인</option><option value="health">운동</option><option value="other">기타</option>
+          </select>
+        </label>
+        <label>메모 <span class="optional">선택</span><textarea id="noteInput" name="note" rows="3" maxlength="160" placeholder="장소나 준비물을 적어보세요"></textarea></label>
+        <div class="dialog-actions">
+          <button class="delete-button hidden" id="deleteSchedule" type="button">삭제</button>
+          <button class="save-button" type="submit">저장하기</button>
+        </div>
+      </form>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
