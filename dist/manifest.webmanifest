@@ -1,1 +1,1 @@
-{"name":"나의 반복 주간 시간표","short_name":"주간 시간표","description":"한 번 작성하면 매주 반복되는 시간표 앱","start_url":"./","display":"standalone","background_color":"#f6f5fc","theme_color":"#6256e8","lang":"ko","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
+{"name":"나의 시간표","short_name":"나의 시간표","description":"일요일부터 목요일까지 사용하는 고정 시간표 앱","start_url":"./","display":"standalone","background_color":"#f6f5fc","theme_color":"#6256e8","lang":"ko","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}

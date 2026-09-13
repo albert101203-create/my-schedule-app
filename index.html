@@ -8,23 +8,13 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="apple-touch-icon" href="icon.svg" />
     <link rel="stylesheet" href="style.css" />
-    <title>나의 주간 스케줄</title>
+    <title>나의 시간표</title>
   </head>
   <body>
     <main class="app-shell">
       <header class="topbar">
-        <div>
-          <p class="eyebrow" id="todayLabel">매주 반복</p>
-          <h1>나의 주간 시간표</h1>
-        </div>
-        <button class="icon-button" id="jumpToday" type="button" aria-label="오늘 요일로 이동" title="오늘 요일로 이동">◉</button>
+        <h1>나의 시간표</h1>
       </header>
-
-      <section class="summary-card" aria-label="반복 일정 요약">
-        <div class="summary-date" id="summaryDate"></div>
-        <div><strong id="weekCount">0</strong><span>개의 일정 · <b id="weekHours">0</b>시간</span></div>
-        <p id="nextSchedule">매주 반복할 첫 일정을 추가해 보세요.</p>
-      </section>
 
       <nav class="view-tabs" aria-label="보기 전환">
         <button class="tab active" type="button" data-view="week">주간 시간표</button>
@@ -34,8 +24,8 @@
       <section id="weekView" class="view">
         <div class="week-toolbar static-week">
           <div>
-            <h2 id="weekTitle">월 · 화 · 수 · 목 · 금 · 토 · 일</h2>
-            <p>한 번 작성하면 매주 그대로 반복돼요 · 위아래로 드래그해 시간 선택</p>
+            <h2 id="weekTitle">일 · 월 · 화 · 수 · 목</h2>
+            <p>빈 칸을 위아래로 드래그해 시간을 선택하세요</p>
           </div>
         </div>
         <div class="week-scroll" id="weekScroll" tabindex="0" aria-label="주간 시간표, 좌우로 밀어서 요일 확인">
@@ -46,7 +36,7 @@
 
       <section id="agendaView" class="view hidden">
         <div class="section-heading">
-          <h2>매주 반복 일정</h2>
+          <h2>일정 목록</h2>
           <button class="text-button" id="filterButton" type="button">전체 보기</button>
         </div>
         <div id="scheduleList" class="schedule-list" aria-live="polite"></div>
@@ -64,7 +54,7 @@
         <label>일정 이름<input id="titleInput" name="title" type="text" maxlength="60" placeholder="예: 수학 학원" required autocomplete="off" /></label>
         <label>요일
           <select id="dayInput" name="day" required>
-            <option value="0">월요일</option><option value="1">화요일</option><option value="2">수요일</option><option value="3">목요일</option><option value="4">금요일</option><option value="5">토요일</option><option value="6">일요일</option>
+            <option value="0">일요일</option><option value="1">월요일</option><option value="2">화요일</option><option value="3">수요일</option><option value="4">목요일</option>
           </select>
         </label>
         <div class="form-row">
