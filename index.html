@@ -14,6 +14,10 @@
     <main class="app-shell">
       <header class="topbar">
         <h1>나의 시간표</h1>
+        <div class="account-actions">
+          <button class="header-button hidden" id="shareButton" type="button">공유</button>
+          <button class="header-button" id="accountButton" type="button">로그인</button>
+        </div>
       </header>
 
       <nav class="view-tabs" aria-label="보기 전환">
@@ -104,7 +108,45 @@
       </section>
     </dialog>
 
+    <dialog id="authDialog" class="auth-dialog">
+      <form id="authForm" method="dialog" class="auth-panel">
+        <div class="dialog-header">
+          <div><h2>로그인 · 회원가입</h2><p>계정으로 시간표를 저장하고 공유하세요.</p></div>
+          <button class="icon-button small" id="closeAuthDialog" type="button" aria-label="닫기">×</button>
+        </div>
+        <label>이메일<input id="authEmail" type="email" autocomplete="email" required placeholder="email@example.com"></label>
+        <label>비밀번호<input id="authPassword" type="password" autocomplete="current-password" minlength="6" required placeholder="6자 이상"></label>
+        <p id="authMessage" class="form-message"></p>
+        <div class="dialog-actions auth-actions">
+          <button class="detail-edit-button" id="signupButton" type="button">회원가입</button>
+          <button class="save-button" type="submit">로그인</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="shareDialog" class="share-dialog">
+      <section class="share-panel">
+        <div class="dialog-header">
+          <div><h2>시간표 공유</h2><p>내 시간표를 공유하거나 받은 시간표를 열 수 있어요.</p></div>
+          <button class="icon-button small" id="closeShareDialog" type="button" aria-label="닫기">×</button>
+        </div>
+        <label>현재 시간표<select id="timetableSelect"></select></label>
+        <div id="ownerShareArea">
+          <label>공유 링크<div class="copy-row"><input id="shareLinkInput" type="text" readonly><button id="copyShareLink" type="button">복사</button></div></label>
+          <p class="share-help">링크를 받은 사람은 로그인 후 읽기 전용으로 볼 수 있어요.</p>
+        </div>
+        <div class="join-box">
+          <strong>공유받은 시간표 추가</strong>
+          <div class="copy-row"><input id="joinCodeInput" type="text" placeholder="공유 코드 또는 링크"><button id="joinTimetable" type="button">추가</button></div>
+        </div>
+        <p id="shareMessage" class="form-message"></p>
+      </section>
+    </dialog>
+
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
     <script src="app.js"></script>
+    <script src="cloud.js"></script>
   </body>
 </html>
