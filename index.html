@@ -71,12 +71,30 @@
             <input id="colorInput" name="color" class="hidden-color-input" type="color" value="#4d79e8" />
           </span>
         </label>
-        <label>메모 <span class="optional">선택</span><textarea id="noteInput" name="note" rows="3" maxlength="160" placeholder="장소나 준비물을 적어보세요"></textarea></label>
+        <label>세부 시간표 <span class="optional">선택</span><textarea id="detailsInput" name="details" rows="4" maxlength="600" placeholder="예:&#10;09:00 국어&#10;10:00 수학&#10;11:00 영어"></textarea></label>
+        <label>메모 <span class="optional">선택</span><textarea id="noteInput" name="note" rows="2" maxlength="160" placeholder="장소나 준비물을 적어보세요"></textarea></label>
         <div class="dialog-actions">
           <button class="delete-button hidden" id="deleteSchedule" type="button">삭제</button>
           <button class="save-button" type="submit">저장하기</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="detailDialog" class="detail-dialog">
+      <section class="detail-panel">
+        <div class="dialog-header">
+          <div>
+            <h2 id="detailTitle">세부 시간표</h2>
+            <p id="detailMeta" class="detail-meta"></p>
+          </div>
+          <button class="icon-button small" id="closeDetailDialog" type="button" aria-label="닫기">×</button>
+        </div>
+        <div id="detailSchedule" class="detail-schedule"></div>
+        <p id="detailNote" class="detail-note hidden"></p>
+        <div class="dialog-actions">
+          <button class="save-button" id="editFromDetail" type="button">수정하기</button>
+        </div>
+      </section>
     </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
