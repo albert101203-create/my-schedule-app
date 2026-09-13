@@ -31,12 +31,13 @@
     if(!code)throw new Error('공유 코드나 링크를 입력하세요.');const{data,error}=await client.rpc('join_timetable_by_code',{input_code:code});if(error)throw error;return data;
   }
   async function prepareAccount(){
-    const localBefore=app.getSchedules();let created=false;timetables=await fetchTimetables();let mine=timetables.find(table=>table.owner_id===user.id);
-    if(!mine){const{data,error}=await client.from('timetables').insert({owner_id:user.id,name:'나의 시간표'}).select().single();if(error)throw error;mine=data;created=true;timetables=await fetchTimetables()}
-    const queryCode=new URLSearchParams(location.search).get('join');let preferredId=localStorage.getItem(activeKey);
+    const localBefore=app.getSchedules(),previousActive=localStorage.getItem(activeKey);timetables=await fetchTimetables();let mine=timetables.find(table=>table.owner_id===user.id);
+    if(!mine){const{data,error}=await client.from('timetables').insert({owner_id:user.id,name:'나의 시간표'}).select().single();if(error)throw error;mine=data;timetables=await fetchTimetables()}
+    const migrationKey=`my-schedule-cloud-migrated-${user.id}`;
+    if(!localStorage.getItem(migrationKey)&&localBefore.length&&(!previousActive||previousActive===mine.id)){const{count,error}=await client.from('schedules').select('id',{count:'exact',head:true}).eq('timetable_id',mine.id);if(error)throw error;if(!count){await uploadItems(localBefore,mine.id);app.notify('기존 시간표를 내 계정으로 옮겼어요.')}localStorage.setItem(migrationKey,'1')}
+    const queryCode=new URLSearchParams(location.search).get('join');let preferredId=previousActive;
     if(queryCode){preferredId=await joinByCode(queryCode);history.replaceState({},'',location.pathname);timetables=await fetchTimetables();app.notify('공유 시간표를 추가했어요.')}
     const table=timetables.find(item=>item.id===preferredId)||mine||timetables[0];
-    if(created&&localBefore.length){await uploadItems(localBefore,mine.id);app.notify('기존 시간표를 계정에 저장했어요.')}
     await loadSchedules(table);
   }
   async function setSession(session){
