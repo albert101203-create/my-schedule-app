@@ -37,7 +37,6 @@
       <section id="agendaView" class="view hidden">
         <div class="section-heading">
           <h2>일정 목록</h2>
-          <button class="text-button" id="filterButton" type="button">전체 보기</button>
         </div>
         <div id="scheduleList" class="schedule-list" aria-live="polite"></div>
       </section>
@@ -61,11 +60,6 @@
           <label>시작 시간<input id="timeInput" name="time" type="time" required /></label>
           <label>종료 시간<input id="endTimeInput" name="endTime" type="time" required /></label>
         </div>
-        <label>분류
-          <select id="categoryInput" name="category">
-            <option value="school">학교</option><option value="study">공부</option><option value="personal">개인</option><option value="health">운동</option><option value="other">기타</option>
-          </select>
-        </label>
         <label>일정 색상
           <span class="color-chooser">
             <span class="color-presets" id="colorPresets">
@@ -79,7 +73,7 @@
               <button class="color-swatch custom-swatch" id="customColorButton" type="button" aria-label="사용자 지정 색상">＋</button>
             </span>
             <select id="matchColorSelect" class="match-color-select" aria-label="다른 일정과 같은 색 사용"></select>
-            <span class="color-caption">색을 누르거나, 기존 일정과 같은 색을 선택하세요.</span>
+            <span class="color-caption">색을 누르거나, 색깔별로 묶인 기존 일정에서 골라보세요.</span>
             <input id="colorInput" name="color" class="hidden-color-input" type="color" value="#4d79e8" />
           </span>
         </label>

@@ -23,7 +23,7 @@ if(!localStorage.getItem(ORDER_KEY)){
   localStorage.setItem(ORDER_KEY,'1');localStorage.setItem(STORAGE_KEY,JSON.stringify(schedules));
 }else schedules=schedules.map(x=>({...x,day:Number(x.day)}));
 
-let selectedDay=defaultDay(),activeFilter='all',editId=null;
+let selectedDay=defaultDay(),editId=null;
 function visibleSchedules(){return schedules.filter(x=>Number(x.day)>=0&&Number(x.day)<DAY_NAMES.length)}
 function persist(){localStorage.setItem(STORAGE_KEY,JSON.stringify(schedules))}
 function sorted(items=visibleSchedules()){return[...items].sort((a,b)=>Number(a.day)-Number(b.day)||String(a.time||'99:99').localeCompare(String(b.time||'99:99')))}
@@ -44,8 +44,8 @@ function renderWeek(){
   $('#weekGrid').innerHTML=html;
 }
 
-function card(item){const[cat,baseColor]=categoryInfo[item.category]||categoryInfo.other,color=item.color||baseColor,light=colorLight(color);return`<article class="schedule-card" data-id="${item.id}" style="--category:${color};--category-light:${light}" tabindex="0"><span class="category-line"></span><div class="schedule-card-body"><div class="schedule-meta"><span>${formatTime(item.time)}${item.endTime?`–${item.endTime}`:''}</span><span class="category-pill">${cat}</span></div><h3>${escapeHTML(item.title)}</h3>${item.note?`<p>${escapeHTML(item.note)}</p>`:''}</div></article>`}
-function renderAgenda(){const items=sorted(visibleSchedules().filter(x=>activeFilter==='all'||x.category===activeFilter));$('#filterButton').textContent=activeFilter==='all'?'전체 보기':`${categoryInfo[activeFilter][0]}만 보기`;if(!items.length){$('#scheduleList').innerHTML='<div class="empty"><strong>등록된 일정이 없어요.</strong>시간표의 빈 칸을 위아래로 드래그해 추가하세요.</div>';return}let html='',last=-1;for(const item of items){if(Number(item.day)!==last){last=Number(item.day);html+=`<h3 class="date-group-title">${DAY_FULL[last]}</h3>`}html+=card(item)}$('#scheduleList').innerHTML=html}
+function card(item){const color=itemColor(item),light=colorLight(color);return`<article class="schedule-card" data-id="${item.id}" style="--category:${color};--category-light:${light}" tabindex="0"><span class="category-line"></span><div class="schedule-card-body"><div class="schedule-meta"><span>${formatTime(item.time)}${item.endTime?`–${item.endTime}`:''}</span></div><h3>${escapeHTML(item.title)}</h3>${item.note?`<p>${escapeHTML(item.note)}</p>`:''}</div></article>`}
+function renderAgenda(){const items=sorted();if(!items.length){$('#scheduleList').innerHTML='<div class="empty"><strong>등록된 일정이 없어요.</strong>시간표의 빈 칸을 위아래로 드래그해 추가하세요.</div>';return}let html='',last=-1;for(const item of items){if(Number(item.day)!==last){last=Number(item.day);html+=`<h3 class="date-group-title">${DAY_FULL[last]}</h3>`}html+=card(item)}$('#scheduleList').innerHTML=html}
 function render(){renderWeek();renderAgenda()}
 
 function setSelectedColor(color){
@@ -55,12 +55,16 @@ function setSelectedColor(color){
 }
 function renderColorMatcher(currentId){
   const others=sorted().filter(item=>String(item.id)!==String(currentId||'')),select=$('#matchColorSelect');
-  select.innerHTML=`<option value="">${others.length?'다른 일정과 같은 색 사용':'같은 색으로 맞출 다른 일정이 없음'}</option>`+others.map(item=>`<option value="${item.id}">${DAY_NAMES[Number(item.day)]} ${formatTime(item.time)} · ${escapeHTML(item.title)}</option>`).join('');select.disabled=!others.length;
+  const names={'#4d79e8':'파랑','#765ce6':'보라','#db6290':'분홍','#18a87a':'초록','#ef9c3a':'주황','#e95555':'빨강','#16a6b6':'청록'};
+  const groups=new Map();
+  for(const item of others){const color=itemColor(item).toLowerCase();if(!groups.has(color))groups.set(color,[]);groups.get(color).push(item)}
+  const ordered=[...groups.entries()].sort(([a],[b])=>{const ai=PRESET_COLORS.indexOf(a),bi=PRESET_COLORS.indexOf(b);return(ai<0?99:ai)-(bi<0?99:bi)||a.localeCompare(b)});
+  select.innerHTML=`<option value="">${others.length?'다른 일정과 같은 색 사용':'같은 색으로 맞출 다른 일정이 없음'}</option>`+ordered.map(([color,items])=>`<optgroup label="${names[color]||`사용자 색상 ${color}`} · ${items.length}개">${items.map(item=>`<option value="${item.id}">${DAY_NAMES[Number(item.day)]} ${formatTime(item.time)} · ${escapeHTML(item.title)}</option>`).join('')}</optgroup>`).join('');select.disabled=!others.length;
 }
 
 function openDialog(item=null,preset={}){
   editId=item?.id||null;const start=item?.time||preset.time||'09:00';
-  const category=item?.category||'school';$('#dialogTitle').textContent=item?'일정 수정':'새 일정';$('#titleInput').value=item?.title||'';$('#dayInput').value=String(item?.day??preset.day??selectedDay);$('#timeInput').value=start;$('#endTimeInput').value=item?.endTime||preset.endTime||makeEndTime(start);$('#categoryInput').value=category;renderColorMatcher(item?.id);setSelectedColor(item?.color||categoryInfo[category][1]);$('#noteInput').value=item?.note||'';$('#deleteSchedule').classList.toggle('hidden',!item);$('#scheduleDialog').showModal();$('#titleInput').focus();
+  $('#dialogTitle').textContent=item?'일정 수정':'새 일정';$('#titleInput').value=item?.title||'';$('#dayInput').value=String(item?.day??preset.day??selectedDay);$('#timeInput').value=start;$('#endTimeInput').value=item?.endTime||preset.endTime||makeEndTime(start);renderColorMatcher(item?.id);setSelectedColor(item?itemColor(item):PRESET_COLORS[0]);$('#noteInput').value=item?.note||'';$('#deleteSchedule').classList.toggle('hidden',!item);$('#scheduleDialog').showModal();$('#titleInput').focus();
 }
 function toast(message){const t=$('#toast');t.textContent=message;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
 
@@ -77,12 +81,10 @@ $('#openAddModal').addEventListener('click',()=>openDialog());$('#closeDialog').
 $('#colorPresets').addEventListener('click',e=>{const button=e.target.closest('.color-swatch[data-color]');if(button)setSelectedColor(button.dataset.color)});
 $('#customColorButton').addEventListener('click',()=>$('#colorInput').click());$('#colorInput').addEventListener('input',e=>setSelectedColor(e.target.value));
 $('#matchColorSelect').addEventListener('change',e=>{const item=schedules.find(x=>String(x.id)===e.target.value);if(item)setSelectedColor(itemColor(item))});
-$('#categoryInput').addEventListener('change',e=>setSelectedColor((categoryInfo[e.target.value]||categoryInfo.other)[1]));
 $('#timeInput').addEventListener('change',()=>{if(!editId||minutes($('#endTimeInput').value)<=minutes($('#timeInput').value))$('#endTimeInput').value=makeEndTime($('#timeInput').value)});
 $('#scheduleForm').addEventListener('submit',e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));if(minutes(data.endTime)<=minutes(data.time)){toast('종료 시간은 시작 시간보다 늦어야 해요.');return}const item={id:editId||crypto.randomUUID(),...data,day:Number(data.day)};if(editId)schedules=schedules.map(x=>x.id===editId?item:x);else schedules.push(item);persist();selectedDay=item.day;$('#scheduleDialog').close();render();toast(editId?'일정을 수정했어요.':'일정을 추가했어요.')});
 $('#deleteSchedule').addEventListener('click',()=>{schedules=schedules.filter(x=>x.id!==editId);persist();$('#scheduleDialog').close();render();toast('일정을 삭제했어요.')});
 document.addEventListener('click',e=>{const event=e.target.closest('.week-event,.schedule-card');if(event){openDialog(schedules.find(x=>x.id===event.dataset.id));return}const slot=e.target.closest('.week-slot');if(slot&&!suppressSlotClick){selectedDay=Number(slot.dataset.day);openDialog(null,{day:slot.dataset.day,time:slot.dataset.time})}});
 document.addEventListener('keydown',e=>{const cardEl=e.target.closest?.('.schedule-card');if(cardEl&&e.key==='Enter')openDialog(schedules.find(x=>x.id===cardEl.dataset.id))});
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));$('#weekView').classList.toggle('hidden',b.dataset.view!=='week');$('#agendaView').classList.toggle('hidden',b.dataset.view!=='agenda')}));
-$('#filterButton').addEventListener('click',()=>{const keys=['all',...Object.keys(categoryInfo)];activeFilter=keys[(keys.indexOf(activeFilter)+1)%keys.length];renderAgenda()});
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js');render();
