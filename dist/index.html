@@ -24,11 +24,11 @@
       <section id="weekView" class="view">
         <div class="week-toolbar static-week">
           <div>
-            <h2 id="weekTitle">일 · 월 · 화 · 수 · 목</h2>
+            <h2 id="weekTitle">일 · 월 · 화 · 수 · 목 · 금 · 토</h2>
             <p>빈 칸을 위아래로 드래그해 시간을 선택하세요</p>
           </div>
         </div>
-        <div class="week-scroll" id="weekScroll" tabindex="0" aria-label="일요일부터 목요일까지의 주간 시간표">
+        <div class="week-scroll" id="weekScroll" tabindex="0" aria-label="일요일부터 토요일까지의 주간 시간표">
           <div class="week-grid" id="weekGrid"></div>
         </div>
         <p class="scroll-hint">빈 칸을 위아래로 드래그해 일정을 추가하세요</p>
@@ -54,7 +54,7 @@
         <label>일정 이름<input id="titleInput" name="title" type="text" maxlength="60" placeholder="예: 수학 학원" required autocomplete="off" /></label>
         <label>요일
           <select id="dayInput" name="day" required>
-            <option value="0">일요일</option><option value="1">월요일</option><option value="2">화요일</option><option value="3">수요일</option><option value="4">목요일</option>
+            <option value="0">일요일</option><option value="1">월요일</option><option value="2">화요일</option><option value="3">수요일</option><option value="4">목요일</option><option value="5">금요일</option><option value="6">토요일</option>
           </select>
         </label>
         <div class="form-row">

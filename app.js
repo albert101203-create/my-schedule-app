@@ -1,14 +1,14 @@
 const STORAGE_KEY='my-schedule-pwa-v1';
 const ORDER_KEY='my-schedule-sun-thu-v1';
 const START_HOUR=6,END_HOUR=24,SLOT_MINUTES=30;
-const DAY_NAMES=['일','월','화','수','목'];
+const DAY_NAMES=['일','월','화','수','목','금','토'];
 const DAY_FULL=DAY_NAMES.map(x=>`${x}요일`);
 const categoryInfo={school:['학교','#4d79e8','#eaf0ff'],study:['공부','#765ce6','#efeaff'],personal:['개인','#db6290','#ffedf3'],health:['운동','#18a87a','#e6f8f1'],other:['기타','#ef9c3a','#fff2df']};
 const $=s=>document.querySelector(s);
 const pad=n=>String(n).padStart(2,'0');
 function parseDate(v){return new Date(`${v}T00:00:00`)}
 function todayIndex(){return new Date().getDay()}
-function defaultDay(){return todayIndex()<=4?todayIndex():0}
+function defaultDay(){return todayIndex()}
 function minutes(value){if(!value)return 0;const[h,m]=value.split(':').map(Number);return h*60+m}
 function escapeHTML(value=''){return value.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 function formatTime(t){return t||'시간 미정'}
