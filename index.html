@@ -22,9 +22,6 @@
       </nav>
 
       <section id="weekView" class="view">
-        <div class="batch-color-row">
-          <button class="batch-color-button" id="openBatchColor" type="button">여러 일정 색상 맞추기</button>
-        </div>
         <div class="week-toolbar static-week">
           <div>
             <h2 id="weekTitle">일 · 월 · 화 · 수 · 목 · 금 · 토</h2>
@@ -70,7 +67,21 @@
           </select>
         </label>
         <label>일정 색상
-          <span class="color-field"><input id="colorInput" name="color" type="color" value="#4d79e8" /><span>눌러서 원하는 색을 선택하세요</span></span>
+          <span class="color-chooser">
+            <span class="color-presets" id="colorPresets">
+              <button class="color-swatch" type="button" data-color="#4d79e8" aria-label="파랑" style="--swatch:#4d79e8"></button>
+              <button class="color-swatch" type="button" data-color="#765ce6" aria-label="보라" style="--swatch:#765ce6"></button>
+              <button class="color-swatch" type="button" data-color="#db6290" aria-label="분홍" style="--swatch:#db6290"></button>
+              <button class="color-swatch" type="button" data-color="#18a87a" aria-label="초록" style="--swatch:#18a87a"></button>
+              <button class="color-swatch" type="button" data-color="#ef9c3a" aria-label="주황" style="--swatch:#ef9c3a"></button>
+              <button class="color-swatch" type="button" data-color="#e95555" aria-label="빨강" style="--swatch:#e95555"></button>
+              <button class="color-swatch" type="button" data-color="#16a6b6" aria-label="청록" style="--swatch:#16a6b6"></button>
+              <button class="color-swatch custom-swatch" id="customColorButton" type="button" aria-label="사용자 지정 색상">＋</button>
+            </span>
+            <select id="matchColorSelect" class="match-color-select" aria-label="다른 일정과 같은 색 사용"></select>
+            <span class="color-caption">색을 누르거나, 기존 일정과 같은 색을 선택하세요.</span>
+            <input id="colorInput" name="color" class="hidden-color-input" type="color" value="#4d79e8" />
+          </span>
         </label>
         <label>메모 <span class="optional">선택</span><textarea id="noteInput" name="note" rows="3" maxlength="160" placeholder="장소나 준비물을 적어보세요"></textarea></label>
         <div class="dialog-actions">
@@ -80,23 +91,6 @@
       </form>
     </dialog>
 
-    <dialog id="batchColorDialog" class="schedule-dialog">
-      <form id="batchColorForm" method="dialog">
-        <div class="dialog-header">
-          <h2>선택한 일정 색상 맞추기</h2>
-          <button class="icon-button small" id="closeBatchColor" type="button" aria-label="닫기">×</button>
-        </div>
-        <p class="batch-help">같은 색으로 표시할 일정들만 선택하세요.</p>
-        <div class="batch-schedule-list" id="batchScheduleList"></div>
-        <label>적용할 색상
-          <span class="color-field"><input id="batchColorInput" type="color" value="#6256e8" /><span>선택한 일정에만 적용됩니다</span></span>
-        </label>
-        <div class="dialog-actions">
-          <button class="cancel-button" id="cancelBatchColor" type="button">취소</button>
-          <button class="save-button" type="submit">색상 적용</button>
-        </div>
-      </form>
-    </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script src="app.js"></script>
   </body>

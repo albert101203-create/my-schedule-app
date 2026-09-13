@@ -3,6 +3,7 @@ const ORDER_KEY='my-schedule-sun-thu-v1';
 const START_HOUR=6,END_HOUR=24,SLOT_MINUTES=30;
 const DAY_NAMES=['일','월','화','수','목','금','토'];
 const DAY_FULL=DAY_NAMES.map(x=>`${x}요일`);
+const PRESET_COLORS=['#4d79e8','#765ce6','#db6290','#18a87a','#ef9c3a','#e95555','#16a6b6'];
 const categoryInfo={school:['학교','#4d79e8','#eaf0ff'],study:['공부','#765ce6','#efeaff'],personal:['개인','#db6290','#ffedf3'],health:['운동','#18a87a','#e6f8f1'],other:['기타','#ef9c3a','#fff2df']};
 const $=s=>document.querySelector(s);
 const pad=n=>String(n).padStart(2,'0');
@@ -26,6 +27,7 @@ let selectedDay=defaultDay(),activeFilter='all',editId=null;
 function visibleSchedules(){return schedules.filter(x=>Number(x.day)>=0&&Number(x.day)<DAY_NAMES.length)}
 function persist(){localStorage.setItem(STORAGE_KEY,JSON.stringify(schedules))}
 function sorted(items=visibleSchedules()){return[...items].sort((a,b)=>Number(a.day)-Number(b.day)||String(a.time||'99:99').localeCompare(String(b.time||'99:99')))}
+function itemColor(item){const[,baseColor]=categoryInfo[item.category]||categoryInfo.other;return item.color||baseColor}
 
 function renderWeek(){
   let html='<div class="corner"></div>';
@@ -44,12 +46,21 @@ function renderWeek(){
 
 function card(item){const[cat,baseColor]=categoryInfo[item.category]||categoryInfo.other,color=item.color||baseColor,light=colorLight(color);return`<article class="schedule-card" data-id="${item.id}" style="--category:${color};--category-light:${light}" tabindex="0"><span class="category-line"></span><div class="schedule-card-body"><div class="schedule-meta"><span>${formatTime(item.time)}${item.endTime?`–${item.endTime}`:''}</span><span class="category-pill">${cat}</span></div><h3>${escapeHTML(item.title)}</h3>${item.note?`<p>${escapeHTML(item.note)}</p>`:''}</div></article>`}
 function renderAgenda(){const items=sorted(visibleSchedules().filter(x=>activeFilter==='all'||x.category===activeFilter));$('#filterButton').textContent=activeFilter==='all'?'전체 보기':`${categoryInfo[activeFilter][0]}만 보기`;if(!items.length){$('#scheduleList').innerHTML='<div class="empty"><strong>등록된 일정이 없어요.</strong>시간표의 빈 칸을 위아래로 드래그해 추가하세요.</div>';return}let html='',last=-1;for(const item of items){if(Number(item.day)!==last){last=Number(item.day);html+=`<h3 class="date-group-title">${DAY_FULL[last]}</h3>`}html+=card(item)}$('#scheduleList').innerHTML=html}
-function renderBatchList(){const items=sorted();$('#batchScheduleList').innerHTML=items.map(item=>`<label class="batch-option"><input type="checkbox" name="batchSchedule" value="${item.id}" /><span>${DAY_NAMES[Number(item.day)]} ${formatTime(item.time)} · ${escapeHTML(item.title)}</span></label>`).join('')}
 function render(){renderWeek();renderAgenda()}
+
+function setSelectedColor(color){
+  const value=/^#[0-9a-f]{6}$/i.test(color)?color.toLowerCase():'#4d79e8';$('#colorInput').value=value;let presetFound=false;
+  document.querySelectorAll('.color-swatch[data-color]').forEach(button=>{const selected=button.dataset.color.toLowerCase()===value;button.classList.toggle('selected',selected);if(selected)presetFound=true});
+  const custom=$('#customColorButton');custom.classList.toggle('selected',!presetFound);custom.style.background=presetFound?'':value;custom.style.color=presetFound?'':'#fff';
+}
+function renderColorMatcher(currentId){
+  const others=sorted().filter(item=>String(item.id)!==String(currentId||'')),select=$('#matchColorSelect');
+  select.innerHTML=`<option value="">${others.length?'다른 일정과 같은 색 사용':'같은 색으로 맞출 다른 일정이 없음'}</option>`+others.map(item=>`<option value="${item.id}">${DAY_NAMES[Number(item.day)]} ${formatTime(item.time)} · ${escapeHTML(item.title)}</option>`).join('');select.disabled=!others.length;
+}
 
 function openDialog(item=null,preset={}){
   editId=item?.id||null;const start=item?.time||preset.time||'09:00';
-  const category=item?.category||'school';$('#dialogTitle').textContent=item?'일정 수정':'새 일정';$('#titleInput').value=item?.title||'';$('#dayInput').value=String(item?.day??preset.day??selectedDay);$('#timeInput').value=start;$('#endTimeInput').value=item?.endTime||preset.endTime||makeEndTime(start);$('#categoryInput').value=category;$('#colorInput').value=item?.color||categoryInfo[category][1];$('#noteInput').value=item?.note||'';$('#deleteSchedule').classList.toggle('hidden',!item);$('#scheduleDialog').showModal();$('#titleInput').focus();
+  const category=item?.category||'school';$('#dialogTitle').textContent=item?'일정 수정':'새 일정';$('#titleInput').value=item?.title||'';$('#dayInput').value=String(item?.day??preset.day??selectedDay);$('#timeInput').value=start;$('#endTimeInput').value=item?.endTime||preset.endTime||makeEndTime(start);$('#categoryInput').value=category;renderColorMatcher(item?.id);setSelectedColor(item?.color||categoryInfo[category][1]);$('#noteInput').value=item?.note||'';$('#deleteSchedule').classList.toggle('hidden',!item);$('#scheduleDialog').showModal();$('#titleInput').focus();
 }
 function toast(message){const t=$('#toast');t.textContent=message;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
 
@@ -63,10 +74,10 @@ document.addEventListener('pointermove',e=>{if(!dragState||e.pointerId!==dragSta
 document.addEventListener('pointerup',finishDrag);document.addEventListener('pointercancel',()=>cancelDrag(true));
 
 $('#openAddModal').addEventListener('click',()=>openDialog());$('#closeDialog').addEventListener('click',()=>$('#scheduleDialog').close());
-$('#openBatchColor').addEventListener('click',()=>{if(!visibleSchedules().length){toast('먼저 일정을 추가해 주세요.');return}renderBatchList();$('#batchColorDialog').showModal()});
-$('#closeBatchColor').addEventListener('click',()=>$('#batchColorDialog').close());$('#cancelBatchColor').addEventListener('click',()=>$('#batchColorDialog').close());
-$('#batchColorForm').addEventListener('submit',e=>{e.preventDefault();const ids=new Set([...document.querySelectorAll('input[name="batchSchedule"]:checked')].map(x=>x.value));if(!ids.size){toast('색상을 맞출 일정을 선택해 주세요.');return}const color=$('#batchColorInput').value;schedules=schedules.map(item=>ids.has(String(item.id))?{...item,color}:item);persist();$('#batchColorDialog').close();render();toast(`${ids.size}개 일정의 색상을 맞췄어요.`)});
-$('#categoryInput').addEventListener('change',e=>{$('#colorInput').value=(categoryInfo[e.target.value]||categoryInfo.other)[1]});
+$('#colorPresets').addEventListener('click',e=>{const button=e.target.closest('.color-swatch[data-color]');if(button)setSelectedColor(button.dataset.color)});
+$('#customColorButton').addEventListener('click',()=>$('#colorInput').click());$('#colorInput').addEventListener('input',e=>setSelectedColor(e.target.value));
+$('#matchColorSelect').addEventListener('change',e=>{const item=schedules.find(x=>String(x.id)===e.target.value);if(item)setSelectedColor(itemColor(item))});
+$('#categoryInput').addEventListener('change',e=>setSelectedColor((categoryInfo[e.target.value]||categoryInfo.other)[1]));
 $('#timeInput').addEventListener('change',()=>{if(!editId||minutes($('#endTimeInput').value)<=minutes($('#timeInput').value))$('#endTimeInput').value=makeEndTime($('#timeInput').value)});
 $('#scheduleForm').addEventListener('submit',e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));if(minutes(data.endTime)<=minutes(data.time)){toast('종료 시간은 시작 시간보다 늦어야 해요.');return}const item={id:editId||crypto.randomUUID(),...data,day:Number(data.day)};if(editId)schedules=schedules.map(x=>x.id===editId?item:x);else schedules.push(item);persist();selectedDay=item.day;$('#scheduleDialog').close();render();toast(editId?'일정을 수정했어요.':'일정을 추가했어요.')});
 $('#deleteSchedule').addEventListener('click',()=>{schedules=schedules.filter(x=>x.id!==editId);persist();$('#scheduleDialog').close();render();toast('일정을 삭제했어요.')});
