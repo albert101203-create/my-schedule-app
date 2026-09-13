@@ -33,6 +33,7 @@ function renderWeek(){
   let html='<div class="corner"></div>';
   for(let d=0;d<DAY_NAMES.length;d++)html+=`<div class="day-head" style="grid-column:${d+2};grid-row:1"><strong>${DAY_NAMES[d]}</strong></div>`;
   for(let h=START_HOUR;h<END_HOUR;h++)html+=`<div class="time-label" style="grid-row:${2+(h-START_HOUR)*2}/span 2">${pad(h)}:00</div>`;
+  html+='<div class="time-end-label">24:00</div>';
   for(let d=0;d<DAY_NAMES.length;d++)html+=`<div class="day-lane" style="grid-column:${d+2}"></div>`;
   const slots=(END_HOUR-START_HOUR)*2;
   for(let d=0;d<DAY_NAMES.length;d++)for(let s=0;s<slots;s++){const time=slotTime(s);html+=`<button class="week-slot" type="button" data-day="${d}" data-time="${time}" data-slot="${s}" aria-label="${DAY_FULL[d]} ${time} 일정 추가" style="grid-column:${d+2};grid-row:${s+2}"></button>`}
