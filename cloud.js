@@ -32,7 +32,7 @@
   }
   async function prepareAccount(){
     const localBefore=app.getSchedules(),previousActive=localStorage.getItem(activeKey);timetables=await fetchTimetables();let mine=timetables.find(table=>table.owner_id===user.id);
-    if(!mine){const{data,error}=await client.from('timetables').insert({owner_id:user.id,name:'나의 시간표'}).select().single();if(error)throw error;mine=data;timetables=await fetchTimetables()}
+    if(!mine){const{error}=await client.from('timetables').insert({name:'나의 시간표'});if(error)throw error;timetables=await fetchTimetables();mine=timetables.find(table=>table.owner_id===user.id);if(!mine)throw new Error('내 시간표를 불러오지 못했어요.')}
     const migrationKey=`my-schedule-cloud-migrated-${user.id}`;
     if(!localStorage.getItem(migrationKey)&&localBefore.length&&(!previousActive||previousActive===mine.id)){const{count,error}=await client.from('schedules').select('id',{count:'exact',head:true}).eq('timetable_id',mine.id);if(error)throw error;if(!count){await uploadItems(localBefore,mine.id);app.notify('기존 시간표를 내 계정으로 옮겼어요.')}localStorage.setItem(migrationKey,'1')}
     const queryCode=new URLSearchParams(location.search).get('join');let preferredId=previousActive;
