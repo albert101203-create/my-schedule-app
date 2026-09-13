@@ -1,1 +1,1 @@
-{"name":"나의 일정","short_name":"나의 일정","description":"내 일정을 간편하게 관리하는 앱","start_url":"./","display":"standalone","background_color":"#f6f5fc","theme_color":"#6256e8","lang":"ko","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
+{"name":"나의 주간 스케줄","short_name":"주간 스케줄","description":"시간별로 한 주를 한눈에 보는 일정 앱","start_url":"./","display":"standalone","background_color":"#f6f5fc","theme_color":"#6256e8","lang":"ko","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
