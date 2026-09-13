@@ -1,100 +1,76 @@
 const STORAGE_KEY='my-schedule-pwa-v1';
-const START_HOUR=6, END_HOUR=24, SLOT_MINUTES=30;
+const START_HOUR=6,END_HOUR=24,SLOT_MINUTES=30;
+const DAY_NAMES=['월','화','수','목','금','토','일'];
+const DAY_FULL=DAY_NAMES.map(x=>`${x}요일`);
 const categoryInfo={school:['학교','#4d79e8','#eaf0ff'],study:['공부','#765ce6','#efeaff'],personal:['개인','#db6290','#ffedf3'],health:['운동','#18a87a','#e6f8f1'],other:['기타','#ef9c3a','#fff2df']};
 const $=s=>document.querySelector(s);
 const pad=n=>String(n).padStart(2,'0');
-function dateKey(d){const x=new Date(d);x.setMinutes(x.getMinutes()-x.getTimezoneOffset());return x.toISOString().slice(0,10)}
 function parseDate(v){return new Date(`${v}T00:00:00`)}
-function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
-function mondayOf(d){const x=new Date(d);const day=x.getDay()||7;x.setDate(x.getDate()-day+1);x.setHours(0,0,0,0);return x}
-function minutes(value){if(!value)return 0;const [h,m]=value.split(':').map(Number);return h*60+m}
+function currentDay(){return(new Date().getDay()+6)%7}
+function dayFromDate(v){return v?(parseDate(v).getDay()+6)%7:currentDay()}
+function minutes(value){if(!value)return 0;const[h,m]=value.split(':').map(Number);return h*60+m}
 function escapeHTML(value=''){return value.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function formatDay(d){return `${d.getMonth()+1}월 ${d.getDate()}일`}
 function formatTime(t){return t||'시간 미정'}
-function makeEndTime(start){const total=Math.min(minutes(start)+60,23*60+59);return `${pad(Math.floor(total/60))}:${pad(total%60)}`}
+function makeEndTime(start){const total=Math.min(minutes(start)+60,23*60+59);return`${pad(Math.floor(total/60))}:${pad(total%60)}`}
+function slotTime(slot){const total=START_HOUR*60+slot*SLOT_MINUTES;if(total>=24*60)return'23:59';return`${pad(Math.floor(total/60))}:${pad(total%60)}`}
 
-let schedules=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]').map(x=>({...x,endTime:x.endTime||(x.time?makeEndTime(x.time):'')}));
-let weekStart=mondayOf(new Date()), selectedDate=dateKey(new Date()), activeFilter='all', editId=null;
+let schedules=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]').map(x=>({...x,day:Number.isInteger(Number(x.day))?Number(x.day):dayFromDate(x.date),endTime:x.endTime||(x.time?makeEndTime(x.time):'')}));
+let selectedDay=currentDay(),activeFilter='all',editId=null;
 function persist(){localStorage.setItem(STORAGE_KEY,JSON.stringify(schedules))}
-function sorted(items=schedules){return [...items].sort((a,b)=>`${a.date}${a.time||'99:99'}`.localeCompare(`${b.date}${b.time||'99:99'}`))}
-function weekItems(){const start=dateKey(weekStart),end=dateKey(addDays(weekStart,6));return schedules.filter(x=>x.date>=start&&x.date<=end)}
+function sorted(items=schedules){return[...items].sort((a,b)=>Number(a.day)-Number(b.day)||String(a.time||'99:99').localeCompare(String(b.time||'99:99')))}
 
 function renderHeader(){
-  const items=weekItems(), today=new Date(), end=addDays(weekStart,6);
-  const total=items.reduce((sum,x)=>sum+Math.max(0,minutes(x.endTime)-minutes(x.time)),0)/60;
-  $('#todayLabel').textContent=`${today.getMonth()+1}월 ${today.getDate()}일 · 오늘`;
-  $('#summaryDate').textContent=`${formatDay(weekStart)} – ${formatDay(end)}`;
-  $('#weekCount').textContent=items.length; $('#weekHours').textContent=Number.isInteger(total)?total:total.toFixed(1);
-  const nowKey=dateKey(today),nowMin=today.getHours()*60+today.getMinutes();
-  const next=sorted(schedules.filter(x=>x.date>nowKey||(x.date===nowKey&&minutes(x.time)>=nowMin)))[0];
-  $('#nextSchedule').textContent=next?`다음 일정 · ${next.date===nowKey?'오늘':formatDay(parseDate(next.date))} ${formatTime(next.time)} ${next.title}`:'다가오는 일정이 없어요.';
+  const total=schedules.reduce((sum,x)=>sum+Math.max(0,minutes(x.endTime)-minutes(x.time)),0)/60;
+  const now=new Date(),today=currentDay(),nowMin=now.getHours()*60+now.getMinutes();
+  $('#todayLabel').textContent=`${now.getMonth()+1}월 ${now.getDate()}일 · ${DAY_FULL[today]}`;
+  $('#summaryDate').textContent='월요일부터 일요일까지 · 매주 자동 반복';
+  $('#weekCount').textContent=schedules.length;$('#weekHours').textContent=Number.isInteger(total)?total:total.toFixed(1);
+  const next=schedules.map(item=>{let offset=(Number(item.day)-today+7)%7;if(offset===0&&minutes(item.time)<nowMin)offset=7;return{item,score:offset*1440+minutes(item.time),offset}}).sort((a,b)=>a.score-b.score)[0];
+  $('#nextSchedule').textContent=next?`다음 일정 · ${next.offset===0?'오늘':DAY_FULL[Number(next.item.day)]} ${formatTime(next.item.time)} ${next.item.title}`:'매주 반복할 첫 일정을 추가해 보세요.';
 }
 
 function renderWeek(){
-  const todayKey=dateKey(new Date()), end=addDays(weekStart,6);
-  $('#weekTitle').textContent=`${weekStart.getFullYear()}년 ${formatDay(weekStart)} – ${formatDay(end)}`;
-  let html='<div class="corner"></div>';
-  const names=['월','화','수','목','금','토','일'];
-  for(let d=0;d<7;d++){const day=addDays(weekStart,d),key=dateKey(day);html+=`<div class="day-head ${key===todayKey?'today':''}" style="grid-column:${d+2};grid-row:1"><strong>${names[d]}요일</strong><span>${day.getMonth()+1}/${day.getDate()}</span></div>`}
+  const today=currentDay();let html='<div class="corner"></div>';
+  for(let d=0;d<7;d++)html+=`<div class="day-head ${d===today?'today':''}" style="grid-column:${d+2};grid-row:1"><strong>${DAY_NAMES[d]}</strong><span>${d===today?'오늘':'매주'}</span></div>`;
   for(let h=START_HOUR;h<END_HOUR;h++)html+=`<div class="time-label" style="grid-row:${2+(h-START_HOUR)*2}/span 2">${pad(h)}:00</div>`;
   for(let d=0;d<7;d++)html+=`<div class="day-lane" style="grid-column:${d+2}"></div>`;
   const slots=(END_HOUR-START_HOUR)*2;
-  for(let d=0;d<7;d++){const date=dateKey(addDays(weekStart,d));for(let s=0;s<slots;s++){const mins=START_HOUR*60+s*SLOT_MINUTES,time=`${pad(Math.floor(mins/60))}:${pad(mins%60)}`;html+=`<button class="week-slot" type="button" data-date="${date}" data-time="${time}" data-slot="${s}" aria-label="${date} ${time} 일정 추가" style="grid-column:${d+2};grid-row:${s+2}"></button>`}}
-  for(const item of sorted(weekItems())){
-    if(!item.time)continue;const dayIndex=Math.round((parseDate(item.date)-weekStart)/86400000);if(dayIndex<0||dayIndex>6)continue;
+  for(let d=0;d<7;d++)for(let s=0;s<slots;s++){const time=slotTime(s);html+=`<button class="week-slot" type="button" data-day="${d}" data-time="${time}" data-slot="${s}" aria-label="${DAY_FULL[d]} ${time} 일정 추가" style="grid-column:${d+2};grid-row:${s+2}"></button>`}
+  for(const item of sorted()){
+    if(!item.time)continue;const dayIndex=Number(item.day);if(dayIndex<0||dayIndex>6)continue;
     const start=Math.max(minutes(item.time),START_HOUR*60),endMin=Math.min(minutes(item.endTime)||start+60,END_HOUR*60);if(endMin<=START_HOUR*60||start>=END_HOUR*60)continue;
-    const row=Math.floor((start-START_HOUR*60)/SLOT_MINUTES)+2,span=Math.max(1,Math.ceil((endMin-start)/SLOT_MINUTES));const [cat,color,light]=categoryInfo[item.category]||categoryInfo.other;
+    const row=Math.floor((start-START_HOUR*60)/SLOT_MINUTES)+2,span=Math.max(1,Math.ceil((endMin-start)/SLOT_MINUTES));const[cat,color,light]=categoryInfo[item.category]||categoryInfo.other;
     html+=`<button class="week-event" type="button" data-id="${item.id}" style="grid-column:${dayIndex+2};grid-row:${row}/span ${span};--category:${color};--category-light:${light}" aria-label="${escapeHTML(item.title)} ${item.time}부터 ${item.endTime}까지"><strong>${escapeHTML(item.title)}</strong><span>${item.time}–${item.endTime}</span></button>`;
   }
   $('#weekGrid').innerHTML=html;
 }
 
-function card(item){const [cat,color,light]=categoryInfo[item.category]||categoryInfo.other;return `<article class="schedule-card" data-id="${item.id}" style="--category:${color};--category-light:${light}" tabindex="0"><span class="category-line"></span><div class="schedule-card-body"><div class="schedule-meta"><span>${formatTime(item.time)}${item.endTime?`–${item.endTime}`:''}</span><span class="category-pill">${cat}</span></div><h3>${escapeHTML(item.title)}</h3>${item.note?`<p>${escapeHTML(item.note)}</p>`:''}</div></article>`}
-function renderAgenda(){const items=sorted(weekItems().filter(x=>activeFilter==='all'||x.category===activeFilter));$('#filterButton').textContent=activeFilter==='all'?'전체 보기':`${categoryInfo[activeFilter][0]}만 보기`;if(!items.length){$('#scheduleList').innerHTML='<div class="empty"><strong>이번 주 일정이 아직 없어요.</strong>시간표의 빈 칸을 눌러 추가해 보세요.</div>';return}let html='',last='';for(const item of items){if(item.date!==last){html+=`<h3 class="date-group-title">${new Intl.DateTimeFormat('ko-KR',{month:'long',day:'numeric',weekday:'long'}).format(parseDate(item.date))}</h3>`;last=item.date}html+=card(item)}$('#scheduleList').innerHTML=html}
+function card(item){const[cat,color,light]=categoryInfo[item.category]||categoryInfo.other;return`<article class="schedule-card" data-id="${item.id}" style="--category:${color};--category-light:${light}" tabindex="0"><span class="category-line"></span><div class="schedule-card-body"><div class="schedule-meta"><span>${formatTime(item.time)}${item.endTime?`–${item.endTime}`:''}</span><span class="category-pill">${cat}</span></div><h3>${escapeHTML(item.title)}</h3>${item.note?`<p>${escapeHTML(item.note)}</p>`:''}</div></article>`}
+function renderAgenda(){const items=sorted(schedules.filter(x=>activeFilter==='all'||x.category===activeFilter));$('#filterButton').textContent=activeFilter==='all'?'전체 보기':`${categoryInfo[activeFilter][0]}만 보기`;if(!items.length){$('#scheduleList').innerHTML='<div class="empty"><strong>반복 일정이 아직 없어요.</strong>시간표의 빈 칸을 위아래로 드래그해 추가하세요.</div>';return}let html='',last=-1;for(const item of items){if(Number(item.day)!==last){last=Number(item.day);html+=`<h3 class="date-group-title">${DAY_FULL[last]} · 매주</h3>`}html+=card(item)}$('#scheduleList').innerHTML=html}
 function render(){renderHeader();renderWeek();renderAgenda()}
 
 function openDialog(item=null,preset={}){
   editId=item?.id||null;const start=item?.time||preset.time||'09:00';
-  $('#dialogTitle').textContent=item?'일정 수정':'새 일정';$('#titleInput').value=item?.title||'';$('#dateInput').value=item?.date||preset.date||selectedDate;$('#timeInput').value=start;$('#endTimeInput').value=item?.endTime||preset.endTime||makeEndTime(start);$('#categoryInput').value=item?.category||'school';$('#noteInput').value=item?.note||'';$('#deleteSchedule').classList.toggle('hidden',!item);$('#scheduleDialog').showModal();$('#titleInput').focus();
+  $('#dialogTitle').textContent=item?'일정 수정':'새 일정';$('#titleInput').value=item?.title||'';$('#dayInput').value=String(item?.day??preset.day??selectedDay);$('#timeInput').value=start;$('#endTimeInput').value=item?.endTime||preset.endTime||makeEndTime(start);$('#categoryInput').value=item?.category||'school';$('#noteInput').value=item?.note||'';$('#deleteSchedule').classList.toggle('hidden',!item);$('#scheduleDialog').showModal();$('#titleInput').focus();
 }
 function toast(message){const t=$('#toast');t.textContent=message;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
 
 let dragState=null,suppressSlotClick=false;
-function slotTime(slot){const total=START_HOUR*60+slot*SLOT_MINUTES;if(total>=24*60)return'23:59';return`${pad(Math.floor(total/60))}:${pad(total%60)}`}
 function clearDragPreview(){$('.drag-preview')?.remove();$('#weekGrid').classList.remove('dragging')}
-function updateDragPreview(){
-  clearDragPreview();if(!dragState)return;
-  const low=Math.min(dragState.start,dragState.current),high=Math.max(dragState.start,dragState.current),dayIndex=Math.round((parseDate(dragState.date)-weekStart)/86400000);
-  const preview=document.createElement('div');preview.className='drag-preview';preview.style.gridColumn=String(dayIndex+2);preview.style.gridRow=`${low+2}/span ${high-low+1}`;preview.textContent=`${slotTime(low)}–${slotTime(high+1)}`;$('#weekGrid').appendChild(preview);$('#weekGrid').classList.add('dragging');
-}
+function updateDragPreview(){clearDragPreview();if(!dragState)return;const low=Math.min(dragState.start,dragState.current),high=Math.max(dragState.start,dragState.current);const preview=document.createElement('div');preview.className='drag-preview';preview.style.gridColumn=String(Number(dragState.day)+2);preview.style.gridRow=`${low+2}/span ${high-low+1}`;preview.textContent=`${slotTime(low)}–${slotTime(high+1)}`;$('#weekGrid').appendChild(preview);$('#weekGrid').classList.add('dragging')}
 function cancelDrag(blockClick=false){dragState=null;clearDragPreview();if(blockClick){suppressSlotClick=true;setTimeout(()=>suppressSlotClick=false,350)}}
-function finishDrag(e){
-  if(!dragState||e.pointerId!==dragState.pointerId)return;
-  const state=dragState,low=Math.min(state.start,state.current),high=Math.max(state.start,state.current);cancelDrag(true);selectedDate=state.date;
-  openDialog(null,{date:state.date,time:slotTime(low),endTime:state.moved?slotTime(high+1):makeEndTime(slotTime(low))});
-}
-$('#weekGrid').addEventListener('pointerdown',e=>{
-  const slot=e.target.closest('.week-slot');if(!slot||(e.pointerType==='mouse'&&e.button!==0))return;
-  dragState={pointerId:e.pointerId,pointerType:e.pointerType,date:slot.dataset.date,start:Number(slot.dataset.slot),current:Number(slot.dataset.slot),x:e.clientX,y:e.clientY,moved:false};
-  updateDragPreview();if(e.pointerType==='mouse')e.preventDefault();
-});
-document.addEventListener('pointermove',e=>{
-  if(!dragState||e.pointerId!==dragState.pointerId)return;
-  const dx=e.clientX-dragState.x,dy=e.clientY-dragState.y;
-  if(e.pointerType==='touch'&&!dragState.moved&&Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)){cancelDrag(true);return}
-  if(Math.abs(dy)>5||Math.abs(dx)>5)dragState.moved=true;
-  const slot=document.elementFromPoint(e.clientX,e.clientY)?.closest?.('.week-slot');if(slot&&slot.dataset.date===dragState.date){dragState.current=Number(slot.dataset.slot);updateDragPreview()}
-  if(dragState.moved){e.preventDefault();const scroller=$('#weekScroll'),rect=scroller.getBoundingClientRect();if(e.clientY<rect.top+72)scroller.scrollTop-=12;else if(e.clientY>rect.bottom-40)scroller.scrollTop+=12}
-},{passive:false});
+function finishDrag(e){if(!dragState||e.pointerId!==dragState.pointerId)return;const state=dragState,low=Math.min(state.start,state.current),high=Math.max(state.start,state.current);cancelDrag(true);selectedDay=Number(state.day);openDialog(null,{day:state.day,time:slotTime(low),endTime:state.moved?slotTime(high+1):makeEndTime(slotTime(low))})}
+$('#weekGrid').addEventListener('pointerdown',e=>{const slot=e.target.closest('.week-slot');if(!slot||(e.pointerType==='mouse'&&e.button!==0))return;dragState={pointerId:e.pointerId,day:slot.dataset.day,start:Number(slot.dataset.slot),current:Number(slot.dataset.slot),x:e.clientX,y:e.clientY,moved:false};updateDragPreview();if(e.pointerType==='mouse')e.preventDefault()});
+document.addEventListener('pointermove',e=>{if(!dragState||e.pointerId!==dragState.pointerId)return;const dx=e.clientX-dragState.x,dy=e.clientY-dragState.y;if(e.pointerType==='touch'&&!dragState.moved&&Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)){cancelDrag(true);return}if(Math.abs(dy)>5||Math.abs(dx)>5)dragState.moved=true;const slot=document.elementFromPoint(e.clientX,e.clientY)?.closest?.('.week-slot');if(slot&&slot.dataset.day===dragState.day){dragState.current=Number(slot.dataset.slot);updateDragPreview()}if(dragState.moved){e.preventDefault();const scroller=$('#weekScroll'),rect=scroller.getBoundingClientRect();if(e.clientY<rect.top+72)scroller.scrollTop-=12;else if(e.clientY>rect.bottom-40)scroller.scrollTop+=12}},{passive:false});
 document.addEventListener('pointerup',finishDrag);document.addEventListener('pointercancel',()=>cancelDrag(true));
 
 $('#openAddModal').addEventListener('click',()=>openDialog());$('#closeDialog').addEventListener('click',()=>$('#scheduleDialog').close());
 $('#timeInput').addEventListener('change',()=>{if(!editId||minutes($('#endTimeInput').value)<=minutes($('#timeInput').value))$('#endTimeInput').value=makeEndTime($('#timeInput').value)});
-$('#scheduleForm').addEventListener('submit',e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));if(minutes(data.endTime)<=minutes(data.time)){toast('종료 시간은 시작 시간보다 늦어야 해요.');return}const item={id:editId||crypto.randomUUID(),...data};if(editId)schedules=schedules.map(x=>x.id===editId?item:x);else schedules.push(item);persist();selectedDate=item.date;weekStart=mondayOf(parseDate(item.date));$('#scheduleDialog').close();render();toast(editId?'일정을 수정했어요.':'일정을 추가했어요.')});
+$('#scheduleForm').addEventListener('submit',e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));if(minutes(data.endTime)<=minutes(data.time)){toast('종료 시간은 시작 시간보다 늦어야 해요.');return}const item={id:editId||crypto.randomUUID(),...data,day:Number(data.day)};if(editId)schedules=schedules.map(x=>x.id===editId?item:x);else schedules.push(item);persist();selectedDay=item.day;$('#scheduleDialog').close();render();toast(editId?'일정을 수정했어요.':'매주 반복 일정으로 추가했어요.')});
 $('#deleteSchedule').addEventListener('click',()=>{schedules=schedules.filter(x=>x.id!==editId);persist();$('#scheduleDialog').close();render();toast('일정을 삭제했어요.')});
-document.addEventListener('click',e=>{const event=e.target.closest('.week-event,.schedule-card');if(event){openDialog(schedules.find(x=>x.id===event.dataset.id));return}const slot=e.target.closest('.week-slot');if(slot&&!suppressSlotClick){selectedDate=slot.dataset.date;openDialog(null,{date:slot.dataset.date,time:slot.dataset.time})}});
+document.addEventListener('click',e=>{const event=e.target.closest('.week-event,.schedule-card');if(event){openDialog(schedules.find(x=>x.id===event.dataset.id));return}const slot=e.target.closest('.week-slot');if(slot&&!suppressSlotClick){selectedDay=Number(slot.dataset.day);openDialog(null,{day:slot.dataset.day,time:slot.dataset.time})}});
 document.addEventListener('keydown',e=>{const cardEl=e.target.closest?.('.schedule-card');if(cardEl&&e.key==='Enter')openDialog(schedules.find(x=>x.id===cardEl.dataset.id))});
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));$('#weekView').classList.toggle('hidden',b.dataset.view!=='week');$('#agendaView').classList.toggle('hidden',b.dataset.view!=='agenda')}));
-$('#previousWeek').addEventListener('click',()=>{weekStart=addDays(weekStart,-7);selectedDate=dateKey(weekStart);render()});$('#nextWeek').addEventListener('click',()=>{weekStart=addDays(weekStart,7);selectedDate=dateKey(weekStart);render()});$('#jumpToday').addEventListener('click',()=>{weekStart=mondayOf(new Date());selectedDate=dateKey(new Date());render();toast('이번 주로 이동했어요.')});
+$('#jumpToday').addEventListener('click',()=>{selectedDay=currentDay();const scroller=$('#weekScroll'),columnWidth=(scroller.scrollWidth-52)/7;scroller.scrollTo({left:Math.max(0,columnWidth*selectedDay-35),behavior:'smooth'});toast(`${DAY_FULL[selectedDay]}로 이동했어요.`)});
 $('#filterButton').addEventListener('click',()=>{const keys=['all',...Object.keys(categoryInfo)];activeFilter=keys[(keys.indexOf(activeFilter)+1)%keys.length];renderAgenda()});
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js');render();
