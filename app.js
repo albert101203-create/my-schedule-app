@@ -14,10 +14,15 @@ function minutes(value){if(!value)return 0;const[h,m]=value.split(':').map(Numbe
 function escapeHTML(value=''){return value.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 function colorLight(hex){const value=/^#[0-9a-f]{6}$/i.test(hex)?hex:'#6256e8';const r=parseInt(value.slice(1,3),16),g=parseInt(value.slice(3,5),16),b=parseInt(value.slice(5,7),16);return`rgba(${r},${g},${b},.14)`}
 function formatTime(t){return t||'시간 미정'}
-function makeEndTime(start){const total=Math.min(minutes(start)+60,23*60+59);return`${pad(Math.floor(total/60))}:${pad(total%60)}`}
-function slotTime(slot){const total=START_HOUR*60+slot*SLOT_MINUTES;if(total>=24*60)return'23:59';return`${pad(Math.floor(total/60))}:${pad(total%60)}`}
+function makeEndTime(start){const total=Math.min(minutes(start)+60,24*60);return`${pad(Math.floor(total/60))}:${pad(total%60)}`}
+function slotTime(slot){const total=START_HOUR*60+slot*SLOT_MINUTES;if(total>=24*60)return'24:00';return`${pad(Math.floor(total/60))}:${pad(total%60)}`}
+function setEndTimeOptions(selected){
+  const values=[];for(let total=START_HOUR*60+SLOT_MINUTES;total<=END_HOUR*60;total+=SLOT_MINUTES)values.push(`${pad(Math.floor(total/60))}:${pad(total%60)}`);
+  if(selected&&!values.includes(selected))values.push(selected);
+  values.sort((a,b)=>minutes(a)-minutes(b));$('#endTimeInput').innerHTML=values.map(value=>`<option value="${value}">${value}</option>`).join('');$('#endTimeInput').value=selected;
+}
 
-let schedules=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]').map(x=>({...x,endTime:x.endTime||(x.time?makeEndTime(x.time):'')}));
+let schedules=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]').map(x=>({...x,endTime:x.endTime==='23:59'?'24:00':(x.endTime||(x.time?makeEndTime(x.time):''))}));
 if(!localStorage.getItem(ORDER_KEY)){
   schedules=schedules.map(x=>({...x,day:x.date?parseDate(x.date).getDay():(Number(x.day)+1)%7}));
   localStorage.setItem(ORDER_KEY,'1');localStorage.setItem(STORAGE_KEY,JSON.stringify(schedules));
@@ -65,7 +70,7 @@ function renderColorMatcher(currentId){
 
 function openDialog(item=null,preset={}){
   editId=item?.id||null;const start=item?.time||preset.time||'09:00';
-  $('#dialogTitle').textContent=item?'일정 수정':'새 일정';$('#titleInput').value=item?.title||'';$('#dayInput').value=String(item?.day??preset.day??selectedDay);$('#timeInput').value=start;$('#endTimeInput').value=item?.endTime||preset.endTime||makeEndTime(start);renderColorMatcher(item?.id);setSelectedColor(item?itemColor(item):PRESET_COLORS[0]);$('#noteInput').value=item?.note||'';$('#deleteSchedule').classList.toggle('hidden',!item);$('#scheduleDialog').showModal();$('#titleInput').focus();
+  $('#dialogTitle').textContent=item?'일정 수정':'새 일정';$('#titleInput').value=item?.title||'';$('#dayInput').value=String(item?.day??preset.day??selectedDay);$('#timeInput').value=start;setEndTimeOptions(item?.endTime||preset.endTime||makeEndTime(start));renderColorMatcher(item?.id);setSelectedColor(item?itemColor(item):PRESET_COLORS[0]);$('#noteInput').value=item?.note||'';$('#deleteSchedule').classList.toggle('hidden',!item);$('#scheduleDialog').showModal();$('#titleInput').focus();
 }
 function toast(message){const t=$('#toast');t.textContent=message;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
 
@@ -82,7 +87,7 @@ $('#openAddModal').addEventListener('click',()=>openDialog());$('#closeDialog').
 $('#colorPresets').addEventListener('click',e=>{const button=e.target.closest('.color-swatch[data-color]');if(button)setSelectedColor(button.dataset.color)});
 $('#customColorButton').addEventListener('click',()=>$('#colorInput').click());$('#colorInput').addEventListener('input',e=>setSelectedColor(e.target.value));
 $('#matchColorSelect').addEventListener('change',e=>{const item=schedules.find(x=>String(x.id)===e.target.value);if(item)setSelectedColor(itemColor(item))});
-$('#timeInput').addEventListener('change',()=>{if(!editId||minutes($('#endTimeInput').value)<=minutes($('#timeInput').value))$('#endTimeInput').value=makeEndTime($('#timeInput').value)});
+$('#timeInput').addEventListener('change',()=>{if(!editId||minutes($('#endTimeInput').value)<=minutes($('#timeInput').value))setEndTimeOptions(makeEndTime($('#timeInput').value))});
 $('#scheduleForm').addEventListener('submit',e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));if(minutes(data.endTime)<=minutes(data.time)){toast('종료 시간은 시작 시간보다 늦어야 해요.');return}const item={id:editId||crypto.randomUUID(),...data,day:Number(data.day)};if(editId)schedules=schedules.map(x=>x.id===editId?item:x);else schedules.push(item);persist();selectedDay=item.day;$('#scheduleDialog').close();render();toast(editId?'일정을 수정했어요.':'일정을 추가했어요.')});
 $('#deleteSchedule').addEventListener('click',()=>{schedules=schedules.filter(x=>x.id!==editId);persist();$('#scheduleDialog').close();render();toast('일정을 삭제했어요.')});
 document.addEventListener('click',e=>{const event=e.target.closest('.week-event,.schedule-card');if(event){openDialog(schedules.find(x=>x.id===event.dataset.id));return}const slot=e.target.closest('.week-slot');if(slot&&!suppressSlotClick){selectedDay=Number(slot.dataset.day);openDialog(null,{day:slot.dataset.day,time:slot.dataset.time})}});
