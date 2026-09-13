@@ -1,5 +1,6 @@
 const STORAGE_KEY='my-schedule-pwa-v1';
 const ORDER_KEY='my-schedule-sun-thu-v1';
+const EDIT_MODE_KEY='my-schedule-edit-mode-v1';
 const START_HOUR=6,END_HOUR=24,SLOT_MINUTES=30;
 const DAY_NAMES=['일','월','화','수','목','금','토'];
 const DAY_FULL=DAY_NAMES.map(x=>`${x}요일`);
@@ -29,12 +30,14 @@ if(!localStorage.getItem(ORDER_KEY)){
 }else schedules=schedules.map(x=>({...x,day:Number(x.day)}));
 
 let selectedDay=defaultDay(),editId=null,detailId=null;
+let editMode=localStorage.getItem(EDIT_MODE_KEY);editMode=editMode===null?!window.matchMedia?.('(pointer:coarse)').matches:editMode==='1';
 function visibleSchedules(){return schedules.filter(x=>Number(x.day)>=0&&Number(x.day)<DAY_NAMES.length)}
 function persist(){localStorage.setItem(STORAGE_KEY,JSON.stringify(schedules));window.dispatchEvent(new CustomEvent('schedule-data-changed'))}
 function sorted(items=visibleSchedules()){return[...items].sort((a,b)=>Number(a.day)-Number(b.day)||String(a.time||'99:99').localeCompare(String(b.time||'99:99')))}
 function itemColor(item){const[,baseColor]=categoryInfo[item.category]||categoryInfo.other;return item.color||baseColor}
-function editingAllowed(){return !window.SCHEDULE_READONLY}
-function requireEditing(){if(editingAllowed())return true;toast('공유받은 시간표는 보기만 할 수 있어요.');return false}
+function editingAllowed(){return editMode&&!window.SCHEDULE_READONLY}
+function requireEditing(){if(editingAllowed())return true;toast(window.SCHEDULE_READONLY?'공유받은 시간표는 보기만 할 수 있어요.':'위쪽의 수정 버튼을 ON으로 바꿔주세요.');return false}
+function applyEditMode(){window.SCHEDULE_EDIT_MODE=editMode;document.body.classList.toggle('edit-mode-on',editMode);document.body.classList.toggle('edit-mode-off',!editMode);const button=$('#editModeButton');if(window.SCHEDULE_READONLY){button.textContent='읽기 전용';button.disabled=true;button.setAttribute('aria-pressed','false')}else{button.disabled=false;button.textContent=editMode?'수정 ON':'수정 OFF';button.setAttribute('aria-pressed',String(editMode))}}
 
 function renderWeek(){
   let html='<div class="corner"></div>';
@@ -93,11 +96,12 @@ function clearDragPreview(){$('.drag-preview')?.remove();$('#weekGrid').classLis
 function updateDragPreview(){clearDragPreview();if(!dragState)return;const low=Math.min(dragState.start,dragState.current),high=Math.max(dragState.start,dragState.current);const preview=document.createElement('div');preview.className='drag-preview';preview.style.gridColumn=String(Number(dragState.day)+2);preview.style.gridRow=`${low+2}/span ${high-low+1}`;preview.textContent=`${slotTime(low)}–${slotTime(high+1)}`;$('#weekGrid').appendChild(preview);$('#weekGrid').classList.add('dragging')}
 function cancelDrag(blockClick=false){dragState=null;clearDragPreview();if(blockClick){suppressSlotClick=true;setTimeout(()=>suppressSlotClick=false,350)}}
 function finishDrag(e){if(!dragState||e.pointerId!==dragState.pointerId)return;const state=dragState,low=Math.min(state.start,state.current),high=Math.max(state.start,state.current);cancelDrag(true);if(!requireEditing())return;selectedDay=Number(state.day);openDialog(null,{day:state.day,time:slotTime(low),endTime:state.moved?slotTime(high+1):makeEndTime(slotTime(low))})}
-$('#weekGrid').addEventListener('pointerdown',e=>{const slot=e.target.closest('.week-slot');if(!slot||!editingAllowed()||e.pointerType==='touch'||(e.pointerType==='mouse'&&e.button!==0))return;dragState={pointerId:e.pointerId,day:slot.dataset.day,start:Number(slot.dataset.slot),current:Number(slot.dataset.slot),x:e.clientX,y:e.clientY,moved:false};updateDragPreview();if(e.pointerType==='mouse')e.preventDefault()});
+$('#weekGrid').addEventListener('pointerdown',e=>{const slot=e.target.closest('.week-slot');if(!slot||!editingAllowed()||(e.pointerType==='mouse'&&e.button!==0))return;dragState={pointerId:e.pointerId,day:slot.dataset.day,start:Number(slot.dataset.slot),current:Number(slot.dataset.slot),x:e.clientX,y:e.clientY,moved:false};updateDragPreview();if(e.pointerType==='mouse')e.preventDefault()});
 document.addEventListener('pointermove',e=>{if(!dragState||e.pointerId!==dragState.pointerId)return;const dx=e.clientX-dragState.x,dy=e.clientY-dragState.y;if(e.pointerType==='touch'&&!dragState.moved&&Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)){cancelDrag(true);return}if(Math.abs(dy)>5||Math.abs(dx)>5)dragState.moved=true;const slot=document.elementFromPoint(e.clientX,e.clientY)?.closest?.('.week-slot');if(slot&&slot.dataset.day===dragState.day){dragState.current=Number(slot.dataset.slot);updateDragPreview()}if(dragState.moved){e.preventDefault();const scroller=$('#weekScroll'),rect=scroller.getBoundingClientRect();if(e.clientY<rect.top+72)scroller.scrollTop-=12;else if(e.clientY>rect.bottom-40)scroller.scrollTop+=12}},{passive:false});
 document.addEventListener('pointerup',finishDrag);document.addEventListener('pointercancel',()=>cancelDrag(true));
 
 $('#openAddModal').addEventListener('click',()=>{if(requireEditing())openDialog()});$('#closeDialog').addEventListener('click',()=>$('#scheduleDialog').close());
+$('#editModeButton').addEventListener('click',()=>{if(window.SCHEDULE_READONLY)return;editMode=!editMode;localStorage.setItem(EDIT_MODE_KEY,editMode?'1':'0');applyEditMode();toast(editMode?'수정 모드를 켰어요.':'수정 모드를 껐어요.')});
 $('#closeDetailDialog').addEventListener('click',()=>$('#detailDialog').close());
 $('#editFromDetail').addEventListener('click',()=>{if(!requireEditing())return;const item=schedules.find(x=>x.id===detailId);$('#detailDialog').close();openDialog(item)});
 $('#addPeriodButton').addEventListener('click',()=>{const entries=currentPeriodEntries(),periodCount=entries.filter(entry=>entry.type==='period').length;if(periodCount>=12){toast('교시는 12개까지 추가할 수 있어요.');return}entries.push({type:'period',value:''});renderPeriodEditor(entries);[...document.querySelectorAll('.period-input')].at(-1)?.focus()});
@@ -115,5 +119,6 @@ document.addEventListener('click',e=>{const event=e.target.closest('.week-event,
 document.addEventListener('dblclick',e=>{const event=e.target.closest('.week-event,.schedule-card');if(!event)return;e.preventDefault();clearTimeout(eventClickTimer);if(requireEditing())openDialog(schedules.find(x=>x.id===event.dataset.id))});
 document.addEventListener('keydown',e=>{const cardEl=e.target.closest?.('.schedule-card');if(cardEl&&e.key==='Enter')openDetail(schedules.find(x=>x.id===cardEl.dataset.id))});
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));$('#weekView').classList.toggle('hidden',b.dataset.view!=='week');$('#agendaView').classList.toggle('hidden',b.dataset.view!=='agenda')}));
-window.scheduleApp={getSchedules:()=>JSON.parse(JSON.stringify(schedules)),replaceSchedules(items){schedules=(items||[]).map(item=>({...item,day:Number(item.day),periods:Array.isArray(item.periods)?item.periods:[]}));localStorage.setItem(STORAGE_KEY,JSON.stringify(schedules));render()},notify:toast,setReadOnly(value){window.SCHEDULE_READONLY=Boolean(value);document.body.classList.toggle('read-only',Boolean(value))}};
+window.scheduleApp={getSchedules:()=>JSON.parse(JSON.stringify(schedules)),replaceSchedules(items){schedules=(items||[]).map(item=>({...item,day:Number(item.day),periods:Array.isArray(item.periods)?item.periods:[]}));localStorage.setItem(STORAGE_KEY,JSON.stringify(schedules));render()},notify:toast,setReadOnly(value){window.SCHEDULE_READONLY=Boolean(value);document.body.classList.toggle('read-only',Boolean(value));applyEditMode()}};
+applyEditMode();
 if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js');render();
