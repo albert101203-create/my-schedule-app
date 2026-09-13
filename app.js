@@ -73,14 +73,17 @@ function openDialog(item=null,preset={}){
   $('#dialogTitle').textContent=item?'일정 수정':'새 일정';$('#titleInput').value=item?.title||'';$('#dayInput').value=String(item?.day??preset.day??selectedDay);$('#timeInput').value=start;setEndTimeOptions(item?.endTime||preset.endTime||makeEndTime(start));renderColorMatcher(item?.id);setSelectedColor(item?itemColor(item):PRESET_COLORS[0]);$('#noteInput').value=item?.note||'';$('#deleteSchedule').classList.toggle('hidden',!item);$('#scheduleDialog').showModal();$('#titleInput').focus();
 }
 function toast(message){const t=$('#toast');t.textContent=message;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
-function periodValues(item){
-  if(Array.isArray(item.periods))return item.periods;const legacy=String(item.details||'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>line.replace(/^\d{1,2}:\d{2}(?:\s*[~–-]\s*\d{1,2}:\d{2})?\s*/,''));return legacy;
+function periodEntries(item){
+  if(Array.isArray(item.periods))return item.periods.map(entry=>typeof entry==='string'?{type:'period',value:entry}:{type:entry.type==='lunch'?'lunch':'period',value:String(entry.value||'')});
+  const legacy=String(item.details||'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>({type:'period',value:line.replace(/^\d{1,2}:\d{2}(?:\s*[~–-]\s*\d{1,2}:\d{2})?\s*/,'')}));return legacy.length?legacy:null;
 }
-function renderPeriodEditor(values=[]){
-  const count=Math.max(8,values.length);$('#detailSchedule').innerHTML=Array.from({length:count},(_,index)=>`<label class="period-row"><strong>${index+1}교시</strong><input class="period-input" data-period="${index}" type="text" maxlength="50" value="${escapeHTML(values[index]||'')}" placeholder="과목이나 할 일 입력" autocomplete="off"></label>`).join('');
+function defaultPeriods(){return Array.from({length:6},()=>({type:'period',value:''}))}
+function currentPeriodEntries(){return[...document.querySelectorAll('.period-row')].map(row=>({type:row.dataset.type==='lunch'?'lunch':'period',value:row.querySelector('.period-input').value}))}
+function renderPeriodEditor(entries=defaultPeriods()){
+  let periodNumber=0;$('#detailSchedule').innerHTML=entries.map((entry,index)=>{const lunch=entry.type==='lunch',label=lunch?'점심시간':`${++periodNumber}교시`;return`<div class="period-row${lunch?' lunch-row':''}" data-type="${lunch?'lunch':'period'}"><strong>${label}</strong><input class="period-input" type="text" maxlength="50" value="${escapeHTML(entry.value||'')}" placeholder="${lunch?'점심시간 내용':'과목이나 할 일 입력'}" autocomplete="off"><button class="delete-period-button" type="button" data-remove-index="${index}" aria-label="${label} 삭제">×</button></div>`}).join('');
 }
 function openDetail(item){
-  if(!item)return;detailId=item.id;$('#detailTitle').textContent=item.title;$('#detailMeta').textContent=`${DAY_FULL[Number(item.day)]} · ${formatTime(item.time)}–${item.endTime}`;renderPeriodEditor(periodValues(item));const note=$('#detailNote');note.textContent=item.note||'';note.classList.toggle('hidden',!item.note);$('#detailDialog').showModal();
+  if(!item)return;detailId=item.id;$('#detailTitle').textContent=item.title;$('#detailMeta').textContent=`${DAY_FULL[Number(item.day)]} · ${formatTime(item.time)}–${item.endTime}`;renderPeriodEditor(periodEntries(item)||defaultPeriods());const note=$('#detailNote');note.textContent=item.note||'';note.classList.toggle('hidden',!item.note);$('#detailDialog').showModal();
 }
 
 let dragState=null,suppressSlotClick=false;
@@ -95,8 +98,10 @@ document.addEventListener('pointerup',finishDrag);document.addEventListener('poi
 $('#openAddModal').addEventListener('click',()=>openDialog());$('#closeDialog').addEventListener('click',()=>$('#scheduleDialog').close());
 $('#closeDetailDialog').addEventListener('click',()=>$('#detailDialog').close());
 $('#editFromDetail').addEventListener('click',()=>{const item=schedules.find(x=>x.id===detailId);$('#detailDialog').close();openDialog(item)});
-$('#addPeriodButton').addEventListener('click',()=>{const rows=[...document.querySelectorAll('.period-input')],values=rows.map(input=>input.value);if(values.length>=12){toast('교시는 12개까지 추가할 수 있어요.');return}values.push('');renderPeriodEditor(values);[...document.querySelectorAll('.period-input')].at(-1)?.focus()});
-$('#saveDetailSchedule').addEventListener('click',()=>{const periods=[...document.querySelectorAll('.period-input')].map(input=>input.value.trim());while(periods.length>8&&!periods.at(-1))periods.pop();schedules=schedules.map(item=>item.id===detailId?{...item,periods}:item);persist();$('#detailDialog').close();toast('세부 시간표를 저장했어요.')});
+$('#addPeriodButton').addEventListener('click',()=>{const entries=currentPeriodEntries(),periodCount=entries.filter(entry=>entry.type==='period').length;if(periodCount>=12){toast('교시는 12개까지 추가할 수 있어요.');return}entries.push({type:'period',value:''});renderPeriodEditor(entries);[...document.querySelectorAll('.period-input')].at(-1)?.focus()});
+$('#addLunchButton').addEventListener('click',()=>{const entries=currentPeriodEntries();if(entries.some(entry=>entry.type==='lunch')){toast('점심시간은 이미 추가되어 있어요.');return}let seen=0,insertAt=entries.length;for(let i=0;i<entries.length;i++){if(entries[i].type==='period'&&++seen===4){insertAt=i+1;break}}entries.splice(insertAt,0,{type:'lunch',value:''});renderPeriodEditor(entries);document.querySelector('.lunch-row .period-input')?.focus()});
+$('#detailSchedule').addEventListener('click',e=>{const button=e.target.closest('.delete-period-button');if(!button)return;const entries=currentPeriodEntries();entries.splice(Number(button.dataset.removeIndex),1);renderPeriodEditor(entries)});
+$('#saveDetailSchedule').addEventListener('click',()=>{const periods=currentPeriodEntries().map(entry=>({...entry,value:entry.value.trim()}));schedules=schedules.map(item=>item.id===detailId?{...item,periods}:item);persist();$('#detailDialog').close();toast('세부 시간표를 저장했어요.')});
 $('#colorPresets').addEventListener('click',e=>{const button=e.target.closest('.color-swatch[data-color]');if(button)setSelectedColor(button.dataset.color)});
 $('#customColorButton').addEventListener('click',()=>$('#colorInput').click());$('#colorInput').addEventListener('input',e=>setSelectedColor(e.target.value));
 $('#matchColorSelect').addEventListener('change',e=>{const item=schedules.find(x=>String(x.id)===e.target.value);if(item)setSelectedColor(itemColor(item))});
