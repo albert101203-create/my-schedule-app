@@ -71,7 +71,6 @@
             <input id="colorInput" name="color" class="hidden-color-input" type="color" value="#4d79e8" />
           </span>
         </label>
-        <label>세부 시간표 <span class="optional">선택</span><textarea id="detailsInput" name="details" rows="4" maxlength="600" placeholder="예:&#10;09:00 국어&#10;10:00 수학&#10;11:00 영어"></textarea></label>
         <label>메모 <span class="optional">선택</span><textarea id="noteInput" name="note" rows="2" maxlength="160" placeholder="장소나 준비물을 적어보세요"></textarea></label>
         <div class="dialog-actions">
           <button class="delete-button hidden" id="deleteSchedule" type="button">삭제</button>
@@ -89,10 +88,15 @@
           </div>
           <button class="icon-button small" id="closeDetailDialog" type="button" aria-label="닫기">×</button>
         </div>
+        <div class="detail-tools">
+          <strong>교시별 시간표</strong>
+          <button class="text-button" id="addPeriodButton" type="button">＋ 교시 추가</button>
+        </div>
         <div id="detailSchedule" class="detail-schedule"></div>
         <p id="detailNote" class="detail-note hidden"></p>
         <div class="dialog-actions">
-          <button class="save-button" id="editFromDetail" type="button">수정하기</button>
+          <button class="detail-edit-button" id="editFromDetail" type="button">일정 수정</button>
+          <button class="save-button" id="saveDetailSchedule" type="button">시간표 저장</button>
         </div>
       </section>
     </dialog>

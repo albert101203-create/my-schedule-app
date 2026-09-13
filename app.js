@@ -70,15 +70,17 @@ function renderColorMatcher(currentId){
 
 function openDialog(item=null,preset={}){
   editId=item?.id||null;const start=item?.time||preset.time||'09:00';
-  $('#dialogTitle').textContent=item?'일정 수정':'새 일정';$('#titleInput').value=item?.title||'';$('#dayInput').value=String(item?.day??preset.day??selectedDay);$('#timeInput').value=start;setEndTimeOptions(item?.endTime||preset.endTime||makeEndTime(start));renderColorMatcher(item?.id);setSelectedColor(item?itemColor(item):PRESET_COLORS[0]);$('#detailsInput').value=item?.details||'';$('#noteInput').value=item?.note||'';$('#deleteSchedule').classList.toggle('hidden',!item);$('#scheduleDialog').showModal();$('#titleInput').focus();
+  $('#dialogTitle').textContent=item?'일정 수정':'새 일정';$('#titleInput').value=item?.title||'';$('#dayInput').value=String(item?.day??preset.day??selectedDay);$('#timeInput').value=start;setEndTimeOptions(item?.endTime||preset.endTime||makeEndTime(start));renderColorMatcher(item?.id);setSelectedColor(item?itemColor(item):PRESET_COLORS[0]);$('#noteInput').value=item?.note||'';$('#deleteSchedule').classList.toggle('hidden',!item);$('#scheduleDialog').showModal();$('#titleInput').focus();
 }
 function toast(message){const t=$('#toast');t.textContent=message;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
-function detailRows(value=''){
-  const lines=value.split(/\r?\n/).map(line=>line.trim()).filter(Boolean);if(!lines.length)return'<div class="detail-empty"><strong>세부 시간표가 아직 없어요.</strong><span>수정하기에서 수업이나 할 일을 추가하세요.</span></div>';
-  return lines.map(line=>{const match=line.match(/^(\d{1,2}:\d{2}(?:\s*[~–-]\s*\d{1,2}:\d{2})?)\s+(.+)$/);return match?`<div class="detail-row"><strong>${escapeHTML(match[1])}</strong><span>${escapeHTML(match[2])}</span></div>`:`<div class="detail-row detail-row-wide"><span>${escapeHTML(line)}</span></div>`}).join('');
+function periodValues(item){
+  if(Array.isArray(item.periods))return item.periods;const legacy=String(item.details||'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>line.replace(/^\d{1,2}:\d{2}(?:\s*[~–-]\s*\d{1,2}:\d{2})?\s*/,''));return legacy;
+}
+function renderPeriodEditor(values=[]){
+  const count=Math.max(8,values.length);$('#detailSchedule').innerHTML=Array.from({length:count},(_,index)=>`<label class="period-row"><strong>${index+1}교시</strong><input class="period-input" data-period="${index}" type="text" maxlength="50" value="${escapeHTML(values[index]||'')}" placeholder="과목이나 할 일 입력" autocomplete="off"></label>`).join('');
 }
 function openDetail(item){
-  if(!item)return;detailId=item.id;$('#detailTitle').textContent=item.title;$('#detailMeta').textContent=`${DAY_FULL[Number(item.day)]} · ${formatTime(item.time)}–${item.endTime}`;$('#detailSchedule').innerHTML=detailRows(item.details);const note=$('#detailNote');note.textContent=item.note||'';note.classList.toggle('hidden',!item.note);$('#detailDialog').showModal();
+  if(!item)return;detailId=item.id;$('#detailTitle').textContent=item.title;$('#detailMeta').textContent=`${DAY_FULL[Number(item.day)]} · ${formatTime(item.time)}–${item.endTime}`;renderPeriodEditor(periodValues(item));const note=$('#detailNote');note.textContent=item.note||'';note.classList.toggle('hidden',!item.note);$('#detailDialog').showModal();
 }
 
 let dragState=null,suppressSlotClick=false;
@@ -93,11 +95,13 @@ document.addEventListener('pointerup',finishDrag);document.addEventListener('poi
 $('#openAddModal').addEventListener('click',()=>openDialog());$('#closeDialog').addEventListener('click',()=>$('#scheduleDialog').close());
 $('#closeDetailDialog').addEventListener('click',()=>$('#detailDialog').close());
 $('#editFromDetail').addEventListener('click',()=>{const item=schedules.find(x=>x.id===detailId);$('#detailDialog').close();openDialog(item)});
+$('#addPeriodButton').addEventListener('click',()=>{const rows=[...document.querySelectorAll('.period-input')],values=rows.map(input=>input.value);if(values.length>=12){toast('교시는 12개까지 추가할 수 있어요.');return}values.push('');renderPeriodEditor(values);[...document.querySelectorAll('.period-input')].at(-1)?.focus()});
+$('#saveDetailSchedule').addEventListener('click',()=>{const periods=[...document.querySelectorAll('.period-input')].map(input=>input.value.trim());while(periods.length>8&&!periods.at(-1))periods.pop();schedules=schedules.map(item=>item.id===detailId?{...item,periods}:item);persist();$('#detailDialog').close();toast('세부 시간표를 저장했어요.')});
 $('#colorPresets').addEventListener('click',e=>{const button=e.target.closest('.color-swatch[data-color]');if(button)setSelectedColor(button.dataset.color)});
 $('#customColorButton').addEventListener('click',()=>$('#colorInput').click());$('#colorInput').addEventListener('input',e=>setSelectedColor(e.target.value));
 $('#matchColorSelect').addEventListener('change',e=>{const item=schedules.find(x=>String(x.id)===e.target.value);if(item)setSelectedColor(itemColor(item))});
 $('#timeInput').addEventListener('change',()=>{if(!editId||minutes($('#endTimeInput').value)<=minutes($('#timeInput').value))setEndTimeOptions(makeEndTime($('#timeInput').value))});
-$('#scheduleForm').addEventListener('submit',e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));if(minutes(data.endTime)<=minutes(data.time)){toast('종료 시간은 시작 시간보다 늦어야 해요.');return}const item={id:editId||crypto.randomUUID(),...data,day:Number(data.day)};if(editId)schedules=schedules.map(x=>x.id===editId?item:x);else schedules.push(item);persist();selectedDay=item.day;$('#scheduleDialog').close();render();toast(editId?'일정을 수정했어요.':'일정을 추가했어요.')});
+$('#scheduleForm').addEventListener('submit',e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));if(minutes(data.endTime)<=minutes(data.time)){toast('종료 시간은 시작 시간보다 늦어야 해요.');return}const previous=schedules.find(x=>x.id===editId)||{},item={...previous,id:editId||crypto.randomUUID(),...data,day:Number(data.day)};if(editId)schedules=schedules.map(x=>x.id===editId?item:x);else schedules.push(item);persist();selectedDay=item.day;$('#scheduleDialog').close();render();toast(editId?'일정을 수정했어요.':'일정을 추가했어요.')});
 $('#deleteSchedule').addEventListener('click',()=>{schedules=schedules.filter(x=>x.id!==editId);persist();$('#scheduleDialog').close();render();toast('일정을 삭제했어요.')});
 let eventClickTimer=null;
 document.addEventListener('click',e=>{const event=e.target.closest('.week-event,.schedule-card');if(event){clearTimeout(eventClickTimer);const item=schedules.find(x=>x.id===event.dataset.id);eventClickTimer=setTimeout(()=>openDetail(item),320);return}const slot=e.target.closest('.week-slot');if(slot&&!suppressSlotClick){selectedDay=Number(slot.dataset.day);openDialog(null,{day:slot.dataset.day,time:slot.dataset.time})}});
