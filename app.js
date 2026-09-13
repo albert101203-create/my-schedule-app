@@ -1,6 +1,5 @@
 const STORAGE_KEY='my-schedule-pwa-v1';
 const ORDER_KEY='my-schedule-sun-thu-v1';
-const COLOR_MODE_KEY='my-schedule-uniform-color-v1';
 const START_HOUR=6,END_HOUR=24,SLOT_MINUTES=30;
 const DAY_NAMES=['일','월','화','수','목','금','토'];
 const DAY_FULL=DAY_NAMES.map(x=>`${x}요일`);
@@ -18,8 +17,6 @@ function makeEndTime(start){const total=Math.min(minutes(start)+60,23*60+59);ret
 function slotTime(slot){const total=START_HOUR*60+slot*SLOT_MINUTES;if(total>=24*60)return'23:59';return`${pad(Math.floor(total/60))}:${pad(total%60)}`}
 
 let schedules=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]').map(x=>({...x,endTime:x.endTime||(x.time?makeEndTime(x.time):'')}));
-let colorMode=JSON.parse(localStorage.getItem(COLOR_MODE_KEY)||'{"enabled":false,"color":"#6256e8"}');
-if(!/^#[0-9a-f]{6}$/i.test(colorMode.color))colorMode.color='#6256e8';
 if(!localStorage.getItem(ORDER_KEY)){
   schedules=schedules.map(x=>({...x,day:x.date?parseDate(x.date).getDay():(Number(x.day)+1)%7}));
   localStorage.setItem(ORDER_KEY,'1');localStorage.setItem(STORAGE_KEY,JSON.stringify(schedules));
@@ -28,8 +25,6 @@ if(!localStorage.getItem(ORDER_KEY)){
 let selectedDay=defaultDay(),activeFilter='all',editId=null;
 function visibleSchedules(){return schedules.filter(x=>Number(x.day)>=0&&Number(x.day)<DAY_NAMES.length)}
 function persist(){localStorage.setItem(STORAGE_KEY,JSON.stringify(schedules))}
-function persistColorMode(){localStorage.setItem(COLOR_MODE_KEY,JSON.stringify(colorMode))}
-function scheduleColor(item,baseColor){return colorMode.enabled?colorMode.color:(item.color||baseColor)}
 function sorted(items=visibleSchedules()){return[...items].sort((a,b)=>Number(a.day)-Number(b.day)||String(a.time||'99:99').localeCompare(String(b.time||'99:99')))}
 
 function renderWeek(){
@@ -41,14 +36,15 @@ function renderWeek(){
   for(let d=0;d<DAY_NAMES.length;d++)for(let s=0;s<slots;s++){const time=slotTime(s);html+=`<button class="week-slot" type="button" data-day="${d}" data-time="${time}" data-slot="${s}" aria-label="${DAY_FULL[d]} ${time} 일정 추가" style="grid-column:${d+2};grid-row:${s+2}"></button>`}
   for(const item of sorted()){
     if(!item.time)continue;const dayIndex=Number(item.day),start=Math.max(minutes(item.time),START_HOUR*60),endMin=Math.min(minutes(item.endTime)||start+60,END_HOUR*60);if(endMin<=START_HOUR*60||start>=END_HOUR*60)continue;
-    const row=Math.floor((start-START_HOUR*60)/SLOT_MINUTES)+2,span=Math.max(1,Math.ceil((endMin-start)/SLOT_MINUTES));const[,baseColor]=categoryInfo[item.category]||categoryInfo.other,color=scheduleColor(item,baseColor),light=colorLight(color);
+    const row=Math.floor((start-START_HOUR*60)/SLOT_MINUTES)+2,span=Math.max(1,Math.ceil((endMin-start)/SLOT_MINUTES));const[,baseColor]=categoryInfo[item.category]||categoryInfo.other,color=item.color||baseColor,light=colorLight(color);
     html+=`<button class="week-event" type="button" data-id="${item.id}" style="grid-column:${dayIndex+2};grid-row:${row}/span ${span};--category:${color};--category-light:${light}" aria-label="${escapeHTML(item.title)} ${item.time}부터 ${item.endTime}까지"><strong>${escapeHTML(item.title)}</strong><span>${item.time}–${item.endTime}</span></button>`;
   }
   $('#weekGrid').innerHTML=html;
 }
 
-function card(item){const[cat,baseColor]=categoryInfo[item.category]||categoryInfo.other,color=scheduleColor(item,baseColor),light=colorLight(color);return`<article class="schedule-card" data-id="${item.id}" style="--category:${color};--category-light:${light}" tabindex="0"><span class="category-line"></span><div class="schedule-card-body"><div class="schedule-meta"><span>${formatTime(item.time)}${item.endTime?`–${item.endTime}`:''}</span><span class="category-pill">${cat}</span></div><h3>${escapeHTML(item.title)}</h3>${item.note?`<p>${escapeHTML(item.note)}</p>`:''}</div></article>`}
+function card(item){const[cat,baseColor]=categoryInfo[item.category]||categoryInfo.other,color=item.color||baseColor,light=colorLight(color);return`<article class="schedule-card" data-id="${item.id}" style="--category:${color};--category-light:${light}" tabindex="0"><span class="category-line"></span><div class="schedule-card-body"><div class="schedule-meta"><span>${formatTime(item.time)}${item.endTime?`–${item.endTime}`:''}</span><span class="category-pill">${cat}</span></div><h3>${escapeHTML(item.title)}</h3>${item.note?`<p>${escapeHTML(item.note)}</p>`:''}</div></article>`}
 function renderAgenda(){const items=sorted(visibleSchedules().filter(x=>activeFilter==='all'||x.category===activeFilter));$('#filterButton').textContent=activeFilter==='all'?'전체 보기':`${categoryInfo[activeFilter][0]}만 보기`;if(!items.length){$('#scheduleList').innerHTML='<div class="empty"><strong>등록된 일정이 없어요.</strong>시간표의 빈 칸을 위아래로 드래그해 추가하세요.</div>';return}let html='',last=-1;for(const item of items){if(Number(item.day)!==last){last=Number(item.day);html+=`<h3 class="date-group-title">${DAY_FULL[last]}</h3>`}html+=card(item)}$('#scheduleList').innerHTML=html}
+function renderBatchList(){const items=sorted();$('#batchScheduleList').innerHTML=items.map(item=>`<label class="batch-option"><input type="checkbox" name="batchSchedule" value="${item.id}" /><span>${DAY_NAMES[Number(item.day)]} ${formatTime(item.time)} · ${escapeHTML(item.title)}</span></label>`).join('')}
 function render(){renderWeek();renderAgenda()}
 
 function openDialog(item=null,preset={}){
@@ -67,9 +63,9 @@ document.addEventListener('pointermove',e=>{if(!dragState||e.pointerId!==dragSta
 document.addEventListener('pointerup',finishDrag);document.addEventListener('pointercancel',()=>cancelDrag(true));
 
 $('#openAddModal').addEventListener('click',()=>openDialog());$('#closeDialog').addEventListener('click',()=>$('#scheduleDialog').close());
-$('#uniformToggle').checked=Boolean(colorMode.enabled);$('#uniformColor').value=colorMode.color;
-$('#uniformToggle').addEventListener('change',e=>{colorMode.enabled=e.target.checked;persistColorMode();render();toast(colorMode.enabled?'모든 일정을 같은 색으로 표시해요.':'일정별 색상으로 표시해요.')});
-$('#uniformColor').addEventListener('input',e=>{colorMode.color=e.target.value;persistColorMode();if(colorMode.enabled)render()});
+$('#openBatchColor').addEventListener('click',()=>{if(!visibleSchedules().length){toast('먼저 일정을 추가해 주세요.');return}renderBatchList();$('#batchColorDialog').showModal()});
+$('#closeBatchColor').addEventListener('click',()=>$('#batchColorDialog').close());$('#cancelBatchColor').addEventListener('click',()=>$('#batchColorDialog').close());
+$('#batchColorForm').addEventListener('submit',e=>{e.preventDefault();const ids=new Set([...document.querySelectorAll('input[name="batchSchedule"]:checked')].map(x=>x.value));if(!ids.size){toast('색상을 맞출 일정을 선택해 주세요.');return}const color=$('#batchColorInput').value;schedules=schedules.map(item=>ids.has(String(item.id))?{...item,color}:item);persist();$('#batchColorDialog').close();render();toast(`${ids.size}개 일정의 색상을 맞췄어요.`)});
 $('#categoryInput').addEventListener('change',e=>{$('#colorInput').value=(categoryInfo[e.target.value]||categoryInfo.other)[1]});
 $('#timeInput').addEventListener('change',()=>{if(!editId||minutes($('#endTimeInput').value)<=minutes($('#timeInput').value))$('#endTimeInput').value=makeEndTime($('#timeInput').value)});
 $('#scheduleForm').addEventListener('submit',e=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.target));if(minutes(data.endTime)<=minutes(data.time)){toast('종료 시간은 시작 시간보다 늦어야 해요.');return}const item={id:editId||crypto.randomUUID(),...data,day:Number(data.day)};if(editId)schedules=schedules.map(x=>x.id===editId?item:x);else schedules.push(item);persist();selectedDay=item.day;$('#scheduleDialog').close();render();toast(editId?'일정을 수정했어요.':'일정을 추가했어요.')});

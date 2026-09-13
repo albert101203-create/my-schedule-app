@@ -22,9 +22,8 @@
       </nav>
 
       <section id="weekView" class="view">
-        <div class="uniform-bar">
-          <label class="uniform-toggle"><input id="uniformToggle" type="checkbox" /> 모든 일정을 같은 색으로</label>
-          <input id="uniformColor" type="color" value="#6256e8" aria-label="전체 일정 색상" />
+        <div class="batch-color-row">
+          <button class="batch-color-button" id="openBatchColor" type="button">여러 일정 색상 맞추기</button>
         </div>
         <div class="week-toolbar static-week">
           <div>
@@ -77,6 +76,24 @@
         <div class="dialog-actions">
           <button class="delete-button hidden" id="deleteSchedule" type="button">삭제</button>
           <button class="save-button" type="submit">저장하기</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="batchColorDialog" class="schedule-dialog">
+      <form id="batchColorForm" method="dialog">
+        <div class="dialog-header">
+          <h2>선택한 일정 색상 맞추기</h2>
+          <button class="icon-button small" id="closeBatchColor" type="button" aria-label="닫기">×</button>
+        </div>
+        <p class="batch-help">같은 색으로 표시할 일정들만 선택하세요.</p>
+        <div class="batch-schedule-list" id="batchScheduleList"></div>
+        <label>적용할 색상
+          <span class="color-field"><input id="batchColorInput" type="color" value="#6256e8" /><span>선택한 일정에만 적용됩니다</span></span>
+        </label>
+        <div class="dialog-actions">
+          <button class="cancel-button" id="cancelBatchColor" type="button">취소</button>
+          <button class="save-button" type="submit">색상 적용</button>
         </div>
       </form>
     </dialog>
