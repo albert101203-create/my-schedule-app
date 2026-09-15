@@ -16,6 +16,7 @@
         <h1>나의 시간표</h1>
         <div class="account-actions">
           <button class="header-button edit-mode-button" id="editModeButton" type="button" aria-pressed="false">수정 OFF</button>
+          <button class="header-button hidden" id="friendsButton" type="button">친구</button>
           <button class="header-button hidden" id="shareButton" type="button">공유</button>
           <button class="header-button" id="accountButton" type="button">로그인</button>
         </div>
@@ -141,6 +142,32 @@
           <div class="copy-row"><input id="joinCodeInput" type="text" placeholder="공유 코드 또는 링크"><button id="joinTimetable" type="button">추가</button></div>
         </div>
         <p id="shareMessage" class="form-message"></p>
+      </section>
+    </dialog>
+
+    <dialog id="friendsDialog" class="friends-dialog">
+      <section class="friends-panel">
+        <div class="dialog-header">
+          <div><h2>친구</h2><p>친구를 추가하고 시간표를 바로 공유할 수 있어요.</p></div>
+          <button class="icon-button small" id="closeFriendsDialog" type="button" aria-label="닫기">×</button>
+        </div>
+        <div class="friend-profile-box">
+          <label>내 이름<div class="copy-row"><input id="friendDisplayName" type="text" maxlength="30"><button id="saveDisplayName" type="button">저장</button></div></label>
+          <label>내 친구 코드<div class="copy-row"><input id="myFriendCode" type="text" readonly><button id="copyFriendCode" type="button">복사</button></div></label>
+        </div>
+        <div class="join-box">
+          <strong>친구 추가</strong>
+          <div class="copy-row"><input id="friendCodeInput" type="text" maxlength="20" placeholder="친구 코드 입력"><button id="sendFriendRequest" type="button">요청</button></div>
+        </div>
+        <section class="friend-section">
+          <h3>받은 요청</h3>
+          <div id="friendRequestList" class="friend-list"></div>
+        </section>
+        <section class="friend-section">
+          <h3>친구 목록</h3>
+          <div id="friendList" class="friend-list"></div>
+        </section>
+        <p id="friendsMessage" class="form-message"></p>
       </section>
     </dialog>
 
